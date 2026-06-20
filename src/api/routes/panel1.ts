@@ -1,9 +1,5 @@
 import { Router } from 'express';
-import { runReverseDCF } from '../controllers/panel1-controller';
-
 const router = Router();
-
-/** POST /api/panel1/reverse-dcf/run */
-router.post('/reverse-dcf/run', runReverseDCF);
-
+/** GET /api/panel1/health */
+router.get('/health', (_req, res) => res.json({ ok: true, panel: 1 }));
 export default router;

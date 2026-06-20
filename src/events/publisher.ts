@@ -1,29 +1,30 @@
 /**
- * Typed publisher helpers — call these from controllers and adapters.
+ * Typed publish helpers — fire-and-forget domain events onto the bus.
+ * Import and call from any handler or script.
  */
 
 import { bus } from './bus';
-import {
+import type {
   MarketDataUpdatedPayload,
-  FundamentalsUpdatedPayload,
   GovernanceScoreUpdatedPayload,
   TradeExecutedPayload,
   ActionDecisionPayload,
 } from './types';
 
 export const publish = {
-  marketDataUpdated: (payload: MarketDataUpdatedPayload) =>
-    bus.emit('MarketDataUpdated', payload),
+  async marketDataUpdated(payload: MarketDataUpdatedPayload): Promise<void> {
+    await bus.publish({ event_type: 'MarketDataUpdated', payload, occurred_at: new Date().toISOString() });
+  },
 
-  fundamentalsUpdated: (payload: FundamentalsUpdatedPayload) =>
-    bus.emit('FundamentalsUpdated', payload),
+  async governanceScoreUpdated(payload: GovernanceScoreUpdatedPayload): Promise<void> {
+    await bus.publish({ event_type: 'GovernanceScoreUpdated', payload, occurred_at: new Date().toISOString() });
+  },
 
-  governanceScoreUpdated: (payload: GovernanceScoreUpdatedPayload) =>
-    bus.emit('GovernanceScoreUpdated', payload),
+  async tradeExecuted(payload: TradeExecutedPayload): Promise<void> {
+    await bus.publish({ event_type: 'TradeExecuted', payload, occurred_at: new Date().toISOString() });
+  },
 
-  tradeExecuted: (payload: TradeExecutedPayload) =>
-    bus.emit('TradeExecuted', payload),
-
-  actionDecision: (payload: ActionDecisionPayload) =>
-    bus.emit('ActionDecision', payload),
+  async actionDecision(payload: ActionDecisionPayload): Promise<void> {
+    await bus.publish({ event_type: 'ActionDecision', payload, occurred_at: new Date().toISOString() });
+  },
 };

@@ -1,22 +1,11 @@
 /**
- * Event bus — domain event types flowing across all panels.
+ * Domain event types shared across all handlers and publishers.
  */
 
-export type DomainEventType =
-  | 'MarketDataUpdated'
-  | 'FundamentalsUpdated'
-  | 'GovernanceScoreUpdated'
-  | 'TradeExecuted'
-  | 'BacktestCompleted'
-  | 'RegimeStateDetected'
-  | 'PolicyChanged'
-  | 'ActionDecision';
-
-export interface DomainEvent<T = unknown> {
-  id: string;
-  type: DomainEventType;
-  occurred_at: string;
+export interface DomainEvent<T> {
+  event_type: string;
   payload: T;
+  occurred_at: string;
 }
 
 export interface MarketDataUpdatedPayload {
@@ -26,18 +15,8 @@ export interface MarketDataUpdatedPayload {
   date_time: string;
 }
 
-export interface FundamentalsUpdatedPayload {
-  security_id: string;
-  period_end: string;
-  revenue?: number;
-  ebit?: number;
-  fcf?: number;
-  shares_out?: number;
-  net_debt?: number;
-}
-
 export interface GovernanceScoreUpdatedPayload {
-  entity_type: string;
+  entity_type: 'issuer' | 'strategy' | 'portfolio';
   entity_id: string;
   as_of: string;
   governance_score: number;

@@ -1,30 +1,31 @@
 /**
- * Lightweight in-process event bus.
- * Replace emit() with a message broker (Redis Streams, SQS, etc.) for production.
+ * In-process domain event bus.
+ * Pub/sub with typed subscribers. Errors in subscribers are caught and logged
+ * so one bad handler never crashes the process.
  */
 
-import { v4 as uuidv4 } from 'uuid';
-import { DomainEvent, DomainEventType } from './types';
+import type { DomainEvent } from './types';
 
 type Handler<T = unknown> = (event: DomainEvent<T>) => Promise<void>;
 
 class EventBus {
-  private handlers = new Map<DomainEventType, Handler[]>();
+  private handlers = new Map<string, Handler[]>();
 
-  subscribe<T>(type: DomainEventType, handler: Handler<T>): void {
-    if (!this.handlers.has(type)) this.handlers.set(type, []);
-    this.handlers.get(type)!.push(handler as Handler);
+  subscribe<T>(eventType: string, handler: Handler<T>): void {
+    const list = this.handlers.get(eventType) ?? [];
+    list.push(handler as Handler);
+    this.handlers.set(eventType, list);
   }
 
-  async emit<T>(type: DomainEventType, payload: T): Promise<void> {
-    const event: DomainEvent<T> = {
-      id: uuidv4(),
-      type,
-      occurred_at: new Date().toISOString(),
-      payload,
-    };
-    const fns = this.handlers.get(type) ?? [];
-    await Promise.all(fns.map((fn) => fn(event as DomainEvent)));
+  async publish<T>(event: DomainEvent<T>): Promise<void> {
+    const list = this.handlers.get(event.event_type) ?? [];
+    await Promise.all(
+      list.map((h) =>
+        (h(event as DomainEvent<unknown>) as Promise<void>).catch((err) => {
+          console.error(`[bus] Handler error for ${event.event_type}:`, err);
+        })
+      )
+    );
   }
 }
 
