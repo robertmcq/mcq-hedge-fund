@@ -1,0 +1,64 @@
+version: '3.9'
+
+services:
+  # ─── Postgres ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mcq_fund
+      POSTGRES_USER: mcq_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mcq_user -d mcq_fund']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── MCQ API ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://mcq_user:${POSTGRES_PASSWORD}@postgres:5432/mcq_fund
+      KALSHI_BASE_URL: ${KALSHI_BASE_URL}
+      KALSHI_WS_URL: ${KALSHI_WS_URL}
+      KALSHI_API_KEY_ID: ${KALSHI_API_KEY_ID}
+      # Inject private key via Docker secret (preferred) or env var:
+      KALSHI_PRIVATE_KEY_PEM: ${KALSHI_PRIVATE_KEY_PEM}
+      H0: ${H0:-0.01}
+      BETA_G: ${BETA_G:-1.5}
+      BETA_VELOCITY: ${BETA_VELOCITY:-0.8}
+      BETA_VOLUME: ${BETA_VOLUME:-0.5}
+      BETA_SHADOW: ${BETA_SHADOW:-1.2}
+      FRACTIONAL_KELLY: ${FRACTIONAL_KELLY:-0.25}
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    secrets:
+      - kalshi_key
+
+secrets:
+  kalshi_key:
+    file: ${KALSHI_KEY_FILE:-/run/secrets/kalshi_key.pem}
+
+volumes:
+  postgres_data:

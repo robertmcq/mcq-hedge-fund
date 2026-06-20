@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────
+  test:
+    name: Type-check, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  # ──────────────────────────────────────────────────────────────────────
+  docker:
+    name: Docker build & health smoke test
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build --target runner -t mcq-hedge-fund:ci .
+
+      - name: Start stack (Postgres + API)
+        run: |
+          cat > .env.ci << 'EOF'
+          POSTGRES_PASSWORD=ci_password_123
+          KALSHI_BASE_URL=https://external-api.demo.kalshi.co
+          KALSHI_WS_URL=wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2
+          KALSHI_API_KEY_ID=ci-dummy
+          KALSHI_PRIVATE_KEY_PEM=
+          KALSHI_KEY_FILE=/dev/null
+          EOF
+          docker compose --env-file .env.ci up -d --build
+
+      - name: Wait for API to become healthy
+        run: |
+          for i in $(seq 1 20); do
+            STATUS=$(curl -sf http://localhost:3000/api/health | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ok'))" 2>/dev/null || echo false)
+            if [ "$STATUS" = "True" ]; then
+              echo "API is healthy after ${i} attempts"
+              exit 0
+            fi
+            echo "Attempt ${i}: not ready yet, waiting 5s..."
+            sleep 5
+          done
+          docker compose logs api
+          exit 1
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  # ──────────────────────────────────────────────────────────────────────
+  docker-push:
+    name: Push to GitHub Container Registry
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: runner
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}

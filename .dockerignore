@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+*.pem
+*.key
+*.p8
+*.p12
+MCQ-FUND.txt
+coverage/
+.git/
+.github/
+*.test.ts
+*.spec.ts
+__tests__/
