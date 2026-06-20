@@ -7,12 +7,13 @@ import express from 'express';
 import { requestId } from './middleware/request-id';
 import { errorHandler } from './middleware/error-handler';
 
-import panel1Router from './routes/panel1';
-import panel2Router from './routes/panel2';
+import panel1Router    from './routes/panel1';
+import panel2Router    from './routes/panel2';
+import panel3Router    from './routes/panel3';
+import panel5Router    from './routes/panel5';
 import governanceRouter from './routes/governance';
-import panel3Router from './routes/panel3';
-import panel5Router from './routes/panel5';
-import kalshiRouter from './routes/kalshi';
+import kalshiRouter    from './routes/kalshi';
+import ledgerRouter    from './routes/ledger';
 
 // Register event handlers (side-effect imports)
 import '../events/handlers/market-data-updated';
@@ -25,20 +26,19 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(requestId);
 
-// Health check — used by Docker HEALTHCHECK and load balancer
+// Health check
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, ts: new Date().toISOString(), uptime_s: process.uptime() });
 });
 
-// Panel routers
-app.use('/api/panel1', panel1Router);
-app.use('/api/panel2', panel2Router);
+app.use('/api/panel1',     panel1Router);
+app.use('/api/panel2',     panel2Router);
+app.use('/api/panel3',     panel3Router);
+app.use('/api/panel5',     panel5Router);
 app.use('/api/governance', governanceRouter);
-app.use('/api/panel3', panel3Router);
-app.use('/api/panel5', panel5Router);
-app.use('/api/kalshi', kalshiRouter);
+app.use('/api/kalshi',     kalshiRouter);
+app.use('/api/ledger',     ledgerRouter);
 
-// Must be last
 app.use(errorHandler);
 
 export { app };
