@@ -43,3 +43,27 @@ export interface ActionDecisionPayload {
   modified_payload_json?: Record<string, unknown>;
   resulting_order_id?: string;
 }
+
+export interface PortfolioInitializedPayload {
+  portfolio_id: string;
+  name: string;
+  base_currency: string;
+  cash: number;
+  ytd_start_equity: number;
+}
+
+export interface PositionOpenedPayload {
+  portfolio_id: string;
+  security_id: string;
+  side: 'long' | 'short';
+  quantity: number;
+  price: number;
+  executed_at: string;
+}
+
+export interface PriceUpdatedPayload {
+  security_id: string;
+  price: number;
+  volume?: number;
+  date_time: string;
+}

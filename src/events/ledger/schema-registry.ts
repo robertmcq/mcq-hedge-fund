@@ -6,12 +6,21 @@
  * the registry throws before the event reaches the bus or ledger.
  *
  * To add a new event type:
- *   1. Add its Zod-style validator (or simple structural check) here.
- *   2. Bump CURRENT_SCHEMA_VERSION if the payload shape changes.
- *   3. Old version records remain valid in the ledger (append-only).
+ *   1. Add its payload interface to src/events/types.ts.
+ *   2. Add a validator entry in the validators map below.
+ *   3. Bump CURRENT_SCHEMA_VERSION if the payload shape changes.
+ *   4. Old version records remain valid in the ledger (append-only).
  */
 
-import type { MarketDataUpdatedPayload, GovernanceScoreUpdatedPayload, TradeExecutedPayload, ActionDecisionPayload } from '../types';
+import type {
+  MarketDataUpdatedPayload,
+  GovernanceScoreUpdatedPayload,
+  TradeExecutedPayload,
+  ActionDecisionPayload,
+  PortfolioInitializedPayload,
+  PositionOpenedPayload,
+  PriceUpdatedPayload,
+} from '../types';
 
 export const CURRENT_SCHEMA_VERSION = 1 as const;
 
@@ -25,11 +34,41 @@ function isNumber(v: unknown): v is number {
 }
 
 const validators: Record<string, Validator<unknown>> = {
+
+  // ── Core market events ───────────────────────────────────────────────
   MarketDataUpdated: (p): p is MarketDataUpdatedPayload => {
     const x = p as Record<string, unknown>;
     return isString(x.security_id) && isNumber(x.price) && isString(x.date_time);
   },
 
+  PRICE_UPDATED: (p): p is PriceUpdatedPayload => {
+    const x = p as Record<string, unknown>;
+    return isString(x.security_id) && isNumber(x.price);
+  },
+
+  // ── Portfolio lifecycle events ──────────────────────────────────────────
+  PORTFOLIO_INITIALIZED: (p): p is PortfolioInitializedPayload => {
+    const x = p as Record<string, unknown>;
+    return (
+      isString(x.portfolio_id) &&
+      isString(x.name) &&
+      isString(x.base_currency) &&
+      isNumber(x.cash)
+    );
+  },
+
+  POSITION_OPENED: (p): p is PositionOpenedPayload => {
+    const x = p as Record<string, unknown>;
+    return (
+      isString(x.portfolio_id) &&
+      isString(x.security_id) &&
+      (x.side === 'long' || x.side === 'short') &&
+      isNumber(x.quantity) &&
+      isNumber(x.price)
+    );
+  },
+
+  // ── Governance events ─────────────────────────────────────────────────
   GovernanceScoreUpdated: (p): p is GovernanceScoreUpdatedPayload => {
     const x = p as Record<string, unknown>;
     return (
@@ -40,6 +79,7 @@ const validators: Record<string, Validator<unknown>> = {
     );
   },
 
+  // ── Trade events ─────────────────────────────────────────────────────
   TradeExecuted: (p): p is TradeExecutedPayload => {
     const x = p as Record<string, unknown>;
     return (
@@ -52,6 +92,7 @@ const validators: Record<string, Validator<unknown>> = {
     );
   },
 
+  // ── Action queue events ───────────────────────────────────────────────
   ActionDecision: (p): p is ActionDecisionPayload => {
     const x = p as Record<string, unknown>;
     return (
