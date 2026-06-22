@@ -17,13 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          # Re-enable once real package-lock.json is committed:
-          # cache: 'npm'
-          # cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        # npm install used while package-lock.json is a stub.
-        # Revert to: npm ci  once a complete lockfile is committed.
         run: npm install
 
       - name: Type check
@@ -34,6 +29,75 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # ──────────────────────────────────────────────────────────────────────
+  validate-replay:
+    name: Seed ledger & validate replay engine
+    runs-on: ubuntu-latest
+    needs: test
+    # Only runs on main push (not PRs) — requires live Postgres via DATABASE_URL secret
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mcq_user
+          POSTGRES_PASSWORD: ci_password_123
+          POSTGRES_DB: mcq_fund
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Apply schema
+        run: |
+          PGPASSWORD=ci_password_123 psql \
+            -h localhost -U mcq_user -d mcq_fund \
+            -f src/db/schema.sql
+        env:
+          DATABASE_URL: postgresql://mcq_user:ci_password_123@localhost:5432/mcq_fund
+
+      - name: Seed ledger
+        run: npx ts-node --esm src/scripts/seed-portfolio.ts
+        env:
+          DATABASE_URL: postgresql://mcq_user:ci_password_123@localhost:5432/mcq_fund
+          H0: '0.01'
+          BETA_G: '1.5'
+          BETA_VELOCITY: '0.8'
+          BETA_VOLUME: '0.5'
+          BETA_SHADOW: '1.2'
+          FRACTIONAL_KELLY: '0.25'
+
+      - name: Validate replay engine
+        run: npx ts-node --esm src/scripts/validate-replay.ts
+        env:
+          DATABASE_URL: postgresql://mcq_user:ci_password_123@localhost:5432/mcq_fund
+          H0: '0.01'
+          BETA_G: '1.5'
+          BETA_VELOCITY: '0.8'
+          BETA_VOLUME: '0.5'
+          BETA_SHADOW: '1.2'
+          FRACTIONAL_KELLY: '0.25'
+          HORIZON_DAYS: '252'
+          WIN_RATE: '0.55'
+          AVG_WIN: '1.8'
+          AVG_LOSS: '1.0'
+          ENFORCE_LOSS: '0.5'
+          ACCOUNT_EQUITY: '1000000'
 
   # ──────────────────────────────────────────────────────────────────────
   docker:
