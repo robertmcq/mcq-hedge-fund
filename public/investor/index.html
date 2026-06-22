@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCQ Ventures — Investor Dashboard</title>
+  <style>
+    :root {
+      --bg:       #0a0e1a;
+      --surface:  #111827;
+      --border:   #1f2937;
+      --accent:   #3b82f6;
+      --green:    #10b981;
+      --yellow:   #f59e0b;
+      --red:      #ef4444;
+      --text:     #f9fafb;
+      --muted:    #9ca3af;
+      --font:     'Inter', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 32px; border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.02em; }
+    header .meta { color: var(--muted); font-size: 12px; }
+
+    main { padding: 28px 32px; display: grid; gap: 24px; }
+
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px;
+    }
+    .card-title {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    }
+    .metric-value { font-size: 28px; font-weight: 700; line-height: 1; }
+    .metric-sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+    .neutral  { color: var(--muted); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+         text-transform: uppercase; color: var(--muted); padding: 6px 10px;
+         border-bottom: 1px solid var(--border); }
+    td { padding: 10px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    }
+    .badge-green  { background: rgba(16,185,129,0.15); color: var(--green); }
+    .badge-yellow { background: rgba(245,158,11,0.15);  color: var(--yellow); }
+    .badge-red    { background: rgba(239,68,68,0.15);   color: var(--red); }
+    .badge-blue   { background: rgba(59,130,246,0.15);  color: var(--accent); }
+
+    .timeline-item {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .timeline-item:last-child { border-bottom: none; }
+    .timeline-seq {
+      min-width: 36px; text-align: right; color: var(--muted);
+      font-size: 11px; font-family: monospace; padding-top: 2px;
+    }
+    .timeline-body { flex: 1; }
+    .timeline-type { font-size: 11px; color: var(--accent); font-weight: 600; margin-bottom: 2px; }
+    .timeline-summary { font-size: 13px; }
+    .timeline-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .curve-bar {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+    }
+    .curve-bar-label { min-width: 52px; font-size: 11px; color: var(--muted); }
+    .curve-bar-track {
+      flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+    }
+    .curve-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .curve-bar-val  { min-width: 40px; text-align: right; font-size: 11px; }
+
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg { color: var(--red); font-size: 13px; padding: 12px 0; }
+    .empty-msg { color: var(--muted); font-size: 13px; padding: 12px 0; }
+
+    .refresh-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>MCQ Ventures &mdash; Investor Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span class="meta" id="last-updated">Loading&hellip;</span>
+    <button class="refresh-btn" onclick="loadAll()">Refresh</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPI tiles -->
+  <div class="grid-3" id="kpi-tiles">
+    <div class="card"><div class="card-title">Portfolio Equity</div><div class="metric-value" id="kpi-equity">&mdash;</div><div class="metric-sub" id="kpi-equity-sub"></div></div>
+    <div class="card"><div class="card-title">Net P&amp;L (YTD)</div><div class="metric-value" id="kpi-pnl">&mdash;</div><div class="metric-sub" id="kpi-pnl-sub"></div></div>
+    <div class="card"><div class="card-title">Open Positions</div><div class="metric-value" id="kpi-positions">&mdash;</div><div class="metric-sub" id="kpi-positions-sub">across all portfolios</div></div>
+  </div>
+
+  <!-- Positions table + Governance table -->
+  <div class="grid-2">
+
+    <div class="card">
+      <div class="card-title">Positions</div>
+      <div id="positions-container"><span class="spinner"></span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Governance &amp; Kelly Sizing</div>
+      <div id="governance-container"><span class="spinner"></span></div>
+    </div>
+
+  </div>
+
+  <!-- Enforcement probability curves -->
+  <div class="card">
+    <div class="card-title">Enforcement Probability Curves (12-month horizon)</div>
+    <div id="curves-container"><span class="spinner"></span></div>
+  </div>
+
+  <!-- Replay timeline -->
+  <div class="card">
+    <div class="card-title">Ledger Replay Timeline</div>
+    <div id="timeline-container"><span class="spinner"></span></div>
+  </div>
+
+</main>
+
+<script>
+  const BASE = '';
+  const fmt  = (n, digits=2) => Number(n).toLocaleString('en-US', { maximumFractionDigits: digits });
+  const fmtPct = (n) => (n >= 0 ? '+' : '') + fmt(n) + '%';
+  const riskColor = (label) => {
+    if (!label) return 'neutral';
+    const l = label.toLowerCase();
+    if (l.includes('critical') || l.includes('high'))   return 'negative';
+    if (l.includes('moderate') || l.includes('medium')) return 'neutral' ;
+    return 'positive';
+  };
+  const badgeClass = (label) => {
+    if (!label) return 'badge-blue';
+    const l = label.toLowerCase();
+    if (l.includes('critical') || l.includes('high'))   return 'badge-red';
+    if (l.includes('moderate') || l.includes('medium')) return 'badge-yellow';
+    if (l.includes('reduce') || l.includes('caution'))  return 'badge-yellow';
+    return 'badge-green';
+  };
+
+  async function fetchJSON(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    return r.json();
+  }
+
+  async function loadSummary() {
+    try {
+      const data = await fetchJSON(`${BASE}/api/investor/summary`);
+      const all = data.portfolios ?? [];
+      const totalEquity   = all.reduce((s, p) => s + p.equity, 0);
+      const totalPnl      = all.reduce((s, p) => s + p.net_pnl, 0);
+      const totalPos      = all.reduce((s, p) => s + p.position_count, 0);
+      const ytdStart      = totalEquity - totalPnl;
+      const pnlPct        = ytdStart > 0 ? (totalPnl / ytdStart) * 100 : 0;
+
+      document.getElementById('kpi-equity').textContent = '$' + fmt(totalEquity, 0);
+      const pnlEl = document.getElementById('kpi-pnl');
+      pnlEl.textContent = (totalPnl >= 0 ? '+$' : '-$') + fmt(Math.abs(totalPnl), 0);
+      pnlEl.className = 'metric-value ' + (totalPnl >= 0 ? 'positive' : 'negative');
+      document.getElementById('kpi-pnl-sub').textContent = fmtPct(pnlPct) + ' YTD';
+      document.getElementById('kpi-positions').textContent = totalPos;
+
+      // Positions table
+      const positions = all.flatMap(p => (p.positions ?? []).map(pos => ({...pos, portfolio_name: p.name})));
+      if (!positions.length) {
+        document.getElementById('positions-container').innerHTML = '<p class="empty-msg">No open positions.</p>';
+        return;
+      }
+      let html = '<table><thead><tr><th>Security</th><th>Side</th><th>Qty</th><th>Avg Cost</th><th>Price</th><th>P&amp;L</th><th>Weight</th></tr></thead><tbody>';
+      for (const p of positions) {
+        const pnlClass = p.pnl >= 0 ? 'positive' : 'negative';
+        html += `<tr>
+          <td><code>${p.security_id}</code></td>
+          <td><span class="badge ${p.side === 'long' ? 'badge-green' : 'badge-red'}">${p.side.toUpperCase()}</span></td>
+          <td>${fmt(p.quantity, 0)}</td>
+          <td>${fmt(p.avg_cost, 4)}</td>
+          <td>${fmt(p.current_price, 4)}</td>
+          <td class="${pnlClass}">${p.pnl >= 0 ? '+' : ''}$${fmt(p.pnl)}</td>
+          <td>${fmt(p.weight_pct)}%</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      document.getElementById('positions-container').innerHTML = html;
+    } catch(e) {
+      document.getElementById('positions-container').innerHTML = `<p class="error-msg">Error loading summary: ${e.message}</p>`;
+    }
+  }
+
+  async function loadGovernance() {
+    try {
+      const data = await fetchJSON(`${BASE}/api/investor/governance`);
+      const rows = data.governance ?? [];
+      if (!rows.length) {
+        document.getElementById('governance-container').innerHTML = '<p class="empty-msg">No governance data.</p>';
+        document.getElementById('curves-container').innerHTML    = '<p class="empty-msg">No enforcement curves.</p>';
+        return;
+      }
+
+      // Governance table
+      let html = '<table><thead><tr><th>Security</th><th>G Score</th><th>Risk</th><th>Enf. Prob 252d</th><th>Kelly Signal</th><th>Risk/Trade</th></tr></thead><tbody>';
+      for (const r of rows) {
+        html += `<tr>
+          <td><code>${r.security_id}</code></td>
+          <td>${fmt(r.governance_score, 3)}</td>
+          <td><span class="badge ${badgeClass(r.risk_label)}">${r.risk_label ?? 'N/A'}</span></td>
+          <td class="${r.enforcement_prob_252d > 0.3 ? 'negative' : r.enforcement_prob_252d > 0.15 ? 'neutral' : 'positive'}">${fmt(r.enforcement_prob_252d * 100, 1)}%</td>
+          <td><span class="badge ${badgeClass(r.kelly_signal)}">${r.kelly_signal}</span></td>
+          <td>$${fmt(r.risk_per_trade_usd, 0)}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      document.getElementById('governance-container').innerHTML = html;
+
+      // Enforcement curves
+      let curves = '';
+      for (const r of rows) {
+        curves += `<div style="margin-bottom:20px"><div style="font-size:12px;color:var(--muted);margin-bottom:8px"><code>${r.security_id}</code> &mdash; Hazard rate: ${fmt(r.hazard_rate, 6)}</div>`;
+        for (const pt of (r.enforcement_curve ?? [])) {
+          const pct = Math.round(pt.enforcement_prob * 100);
+          const fillColor = pct > 30 ? 'var(--red)' : pct > 15 ? 'var(--yellow)' : 'var(--green)';
+          curves += `<div class="curve-bar">
+            <span class="curve-bar-label">${Math.round(pt.horizon_days / 21)}m</span>
+            <div class="curve-bar-track"><div class="curve-bar-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+            <span class="curve-bar-val ${pct > 30 ? 'negative' : pct > 15 ? 'neutral' : 'positive'}">${pct}%</span>
+          </div>`;
+        }
+        curves += '</div>';
+      }
+      document.getElementById('curves-container').innerHTML = curves;
+    } catch(e) {
+      document.getElementById('governance-container').innerHTML = `<p class="error-msg">Error: ${e.message}</p>`;
+      document.getElementById('curves-container').innerHTML    = `<p class="error-msg">Error: ${e.message}</p>`;
+    }
+  }
+
+  async function loadTimeline() {
+    try {
+      const data = await fetchJSON(`${BASE}/api/investor/timeline?limit=30`);
+      const events = data.events ?? [];
+      if (!events.length) {
+        document.getElementById('timeline-container').innerHTML = '<p class="empty-msg">No events in ledger yet.</p>';
+        return;
+      }
+      let html = '';
+      for (const e of events.slice().reverse()) {
+        const ts = new Date(e.occurred_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        html += `<div class="timeline-item">
+          <div class="timeline-seq">#${e.seq}</div>
+          <div class="timeline-body">
+            <div class="timeline-type">${e.event_type}</div>
+            <div class="timeline-summary">${e.summary}</div>
+            <div class="timeline-meta">${ts} &bull; source: ${e.source} &bull; ${e.aggregate_id}</div>
+          </div>
+        </div>`;
+      }
+      document.getElementById('timeline-container').innerHTML = html;
+    } catch(e) {
+      document.getElementById('timeline-container').innerHTML = `<p class="error-msg">Error loading timeline: ${e.message}</p>`;
+    }
+  }
+
+  async function loadAll() {
+    document.getElementById('last-updated').textContent = 'Refreshing…';
+    await Promise.all([loadSummary(), loadGovernance(), loadTimeline()]);
+    document.getElementById('last-updated').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+
+  loadAll();
+  setInterval(loadAll, 30_000); // auto-refresh every 30s
+</script>
+
+</body>
+</html>

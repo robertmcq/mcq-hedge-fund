@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import path from 'path';
 import { requestId } from './middleware/request-id';
 import { errorHandler } from './middleware/error-handler';
 
@@ -14,6 +15,7 @@ import panel5Router    from './routes/panel5';
 import governanceRouter from './routes/governance';
 import kalshiRouter    from './routes/kalshi';
 import ledgerRouter    from './routes/ledger';
+import investorRouter  from './routes/investor';
 
 // Register event handlers (side-effect imports)
 import '../events/handlers/market-data-updated';
@@ -38,6 +40,13 @@ app.use('/api/panel5',     panel5Router);
 app.use('/api/governance', governanceRouter);
 app.use('/api/kalshi',     kalshiRouter);
 app.use('/api/ledger',     ledgerRouter);
+app.use('/api/investor',   investorRouter);
+
+// Serve investor HTML dashboard
+app.use('/investor', express.static(path.join(__dirname, '..', '..', 'public', 'investor')));
+app.get('/investor', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', '..', 'public', 'investor', 'index.html'));
+});
 
 app.use(errorHandler);
 
