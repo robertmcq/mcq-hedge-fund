@@ -43,17 +43,19 @@ export async function appendEvent<T>(
 ): Promise<number> {
   validatePayload(event.event_type, event.payload);
 
-  const eventId = event.event_id ?? randomUUID();
-  const db = client ?? getLedgerPool();
+  const eventId      = event.event_id ?? randomUUID();
+  const aggregateId  = (event as { aggregate_id?: string }).aggregate_id ?? 'system';
+  const db           = client ?? getLedgerPool();
 
   const { rows } = await db.query<{ seq: string }>(
     `INSERT INTO event_ledger
-       (event_id, event_type, schema_version, payload, occurred_at, correlation_id, source)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
+       (event_id, event_type, aggregate_id, schema_version, payload, occurred_at, correlation_id, source)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
      RETURNING seq`,
     [
       eventId,
       event.event_type,
+      aggregateId,
       event.schema_version ?? CURRENT_SCHEMA_VERSION,
       JSON.stringify(event.payload),
       event.occurred_at,
@@ -67,18 +69,16 @@ export async function appendEvent<T>(
 
 /**
  * Read events from the ledger in seq order.
- * @param fromSeq  inclusive lower bound (default 0 = from the beginning)
- * @param toSeq    inclusive upper bound (default = latest)
- * @param eventTypes  optional filter
- * @param limit    max rows per call (default 1000)
+ * Optionally scoped to a single aggregate_id (used by replayAggregate).
  */
 export async function readEvents<T = unknown>(opts: {
   fromSeq?: number;
   toSeq?: number;
   eventTypes?: string[];
+  aggregateId?: string;
   limit?: number;
 }): Promise<LedgerEvent<T>[]> {
-  const { fromSeq = 0, toSeq, eventTypes, limit = 1000 } = opts;
+  const { fromSeq = 0, toSeq, eventTypes, aggregateId, limit = 1000 } = opts;
   const db = getLedgerPool();
 
   const conditions: string[] = ['seq >= $1'];
@@ -87,6 +87,10 @@ export async function readEvents<T = unknown>(opts: {
   if (toSeq !== undefined) {
     params.push(toSeq);
     conditions.push(`seq <= $${params.length}`);
+  }
+  if (aggregateId) {
+    params.push(aggregateId);
+    conditions.push(`aggregate_id = $${params.length}`);
   }
   if (eventTypes && eventTypes.length) {
     params.push(eventTypes);
@@ -98,10 +102,11 @@ export async function readEvents<T = unknown>(opts: {
 
   const { rows } = await db.query<{
     seq: string; event_id: string; event_type: string;
-    schema_version: number; payload: unknown; occurred_at: Date;
-    correlation_id: string | null; source: string;
+    aggregate_id: string; schema_version: number; payload: unknown;
+    occurred_at: Date; correlation_id: string | null; source: string;
   }>(
-    `SELECT seq, event_id, event_type, schema_version, payload, occurred_at, correlation_id, source
+    `SELECT seq, event_id, event_type, aggregate_id, schema_version,
+            payload, occurred_at, correlation_id, source
      FROM event_ledger
      WHERE ${conditions.join(' AND ')}
      ORDER BY seq ASC
@@ -113,6 +118,7 @@ export async function readEvents<T = unknown>(opts: {
     seq:            Number(r.seq),
     event_id:       r.event_id,
     event_type:     r.event_type,
+    aggregate_id:   r.aggregate_id,
     schema_version: r.schema_version as 1,
     payload:        r.payload as T,
     occurred_at:    r.occurred_at.toISOString(),
