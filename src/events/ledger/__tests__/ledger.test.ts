@@ -8,7 +8,7 @@ import { validatePayload } from '../schema-registry';
 import { replayFromLedger } from '../replay-engine';
 import type { LedgerEvent } from '../types';
 
-// ─── Schema Registry tests ──────────────────────────────────────────────────
+// ─── Schema Registry tests ───────────────────────────────────────────────
 
 describe('validatePayload', () => {
   it('passes valid MarketDataUpdated payload', () => {
@@ -54,26 +54,41 @@ describe('validatePayload', () => {
   });
 });
 
-// ─── Replay Engine tests (store mocked) ─────────────────────────────────────────
+// ─── Replay Engine tests (store mocked) ───────────────────────────────────────────
 
 const mockEvents: LedgerEvent[] = [
   {
-    seq: 1, event_id: 'e1', event_type: 'MarketDataUpdated', schema_version: 1,
+    seq:            1,
+    event_id:       'e1',
+    event_type:     'MarketDataUpdated',
+    aggregate_id:   'KXBTC',
+    schema_version: 1,
     payload: { security_id: 'KXBTC', price: 0.60, date_time: '2026-06-20T10:00:00Z' },
-    occurred_at: '2026-06-20T10:00:00Z', source: 'feed',
+    occurred_at:    '2026-06-20T10:00:00Z',
+    source:         'feed',
   },
   {
-    seq: 2, event_id: 'e2', event_type: 'TradeExecuted', schema_version: 1,
+    seq:            2,
+    event_id:       'e2',
+    event_type:     'TradeExecuted',
+    aggregate_id:   'pf-main',
+    schema_version: 1,
     payload: {
       portfolio_id: 'pf-main', security_id: 'KXBTC', side: 'long',
       quantity: 100, price: 0.60, executed_at: '2026-06-20T10:00:01Z',
     },
-    occurred_at: '2026-06-20T10:00:01Z', source: 'api',
+    occurred_at: '2026-06-20T10:00:01Z',
+    source:      'api',
   },
   {
-    seq: 3, event_id: 'e3', event_type: 'MarketDataUpdated', schema_version: 1,
+    seq:            3,
+    event_id:       'e3',
+    event_type:     'MarketDataUpdated',
+    aggregate_id:   'KXBTC',
+    schema_version: 1,
     payload: { security_id: 'KXBTC', price: 0.65, date_time: '2026-06-20T11:00:00Z' },
-    occurred_at: '2026-06-20T11:00:00Z', source: 'feed',
+    occurred_at:    '2026-06-20T11:00:00Z',
+    source:         'feed',
   },
 ];
 
