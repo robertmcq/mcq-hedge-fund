@@ -17,11 +17,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          # NOTE: cache disabled until package-lock.json is fully regenerated
+          # cache: 'npm'
+          # cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        # Using npm install (not npm ci) because the committed package-lock.json
+        # is a stub (no resolved packages). Once a real lock file is committed,
+        # revert this to: npm ci
+        run: npm install
 
       - name: Type check
         run: npx tsc --noEmit
