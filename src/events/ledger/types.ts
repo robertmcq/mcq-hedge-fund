@@ -26,3 +26,11 @@ export interface ReplayCursor {
   last_seq:    number;
   updated_at:  string;
 }
+
+export interface ReplayResult {
+  consumer_id:     string;
+  events_replayed: number;
+  last_seq:        number;
+  duration_ms:     number;
+  errors:          Array<{ seq: number; error: string }>;
+}
