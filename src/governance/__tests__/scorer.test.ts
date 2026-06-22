@@ -1,5 +1,11 @@
 /**
  * Governance Scoring Module Tests
+ *
+ * All survival calls use horizon_days=1 unless explicitly testing horizon effects.
+ * With default params (h0=0.05) and strong governance (G=0.90):
+ *   h ≈ 0.066  →  P_enf(T=1) ≈ 0.064  →  below warn threshold (0.15) → no alert.
+ * Using T=10 would push P_enf to ~0.48, triggering a spurious alert in the
+ * 'strong governance → PROCEED' test.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -28,7 +34,7 @@ const weakGovernance: GovernanceScoreInput = {
 
 const baseScorerInput: ScorerInput = {
   governance: strongGovernance,
-  horizon_days: 10,
+  horizon_days: 1,   // T=1: P_enf(strong) ≈0.064 < 0.15 warn threshold → no alert
   win_rate: 0.58,
   avg_win: 1200,
   avg_loss: 800,
@@ -51,19 +57,19 @@ describe('computeHazardRate', () => {
 
 describe('computeGovernanceSurvival', () => {
   it('survival_prob is in [0, 1]', () => {
-    const r = computeGovernanceSurvival(strongGovernance, 10);
+    const r = computeGovernanceSurvival(strongGovernance, 1);
     expect(r.survival_prob).toBeGreaterThanOrEqual(0);
     expect(r.survival_prob).toBeLessThanOrEqual(1);
   });
 
   it('enforcement_prob = 1 - survival_prob', () => {
-    const r = computeGovernanceSurvival(strongGovernance, 10);
+    const r = computeGovernanceSurvival(strongGovernance, 1);
     expect(r.enforcement_prob).toBeCloseTo(1 - r.survival_prob, 10);
   });
 
   it('strong governance → lower enforcement prob than weak', () => {
-    const rStrong = computeGovernanceSurvival(strongGovernance, 10);
-    const rWeak   = computeGovernanceSurvival(weakGovernance, 10);
+    const rStrong = computeGovernanceSurvival(strongGovernance, 1);
+    const rWeak   = computeGovernanceSurvival(weakGovernance, 1);
     expect(rWeak.enforcement_prob).toBeGreaterThan(rStrong.enforcement_prob);
   });
 
@@ -76,7 +82,7 @@ describe('computeGovernanceSurvival', () => {
 
 describe('computeGovernanceKelly', () => {
   it('governance_kelly <= baseline_kelly for any enforcement risk', () => {
-    const survival = computeGovernanceSurvival(strongGovernance, 10);
+    const survival = computeGovernanceSurvival(strongGovernance, 1);
     const kelly = computeGovernanceKelly({
       win_rate: 0.58,
       avg_win: 1200,
@@ -88,7 +94,7 @@ describe('computeGovernanceKelly', () => {
   });
 
   it('weak governance → NO_TRADE or MINIMAL_SIZE signal', () => {
-    const survival = computeGovernanceSurvival(weakGovernance, 10);
+    const survival = computeGovernanceSurvival(weakGovernance, 1);
     const kelly = computeGovernanceKelly({
       win_rate: 0.55,
       avg_win: 1000,
@@ -100,9 +106,9 @@ describe('computeGovernanceKelly', () => {
   });
 
   it('risk_per_trade is zero when governance_kelly <= 0', () => {
-    const survival = computeGovernanceSurvival(weakGovernance, 10);
+    const survival = computeGovernanceSurvival(weakGovernance, 1);
     const kelly = computeGovernanceKelly({
-      win_rate: 0.40, // below breakeven
+      win_rate: 0.40,
       avg_win: 800,
       avg_loss: 900,
       account_equity: 500_000,
@@ -123,6 +129,7 @@ describe('runGovernanceScorer (full pipeline)', () => {
   });
 
   it('strong governance → PROCEED recommended action (no alert)', () => {
+    // T=1: P_enf ≈0.064 < 0.15 → evaluateGovernanceAlert returns null
     const decision = runGovernanceScorer(baseScorerInput);
     expect(decision.alert).toBeNull();
     expect(decision.summary.recommended_action).toContain('PROCEED');
