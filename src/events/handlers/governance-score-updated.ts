@@ -54,13 +54,13 @@ bus.subscribe<GovernanceScoreUpdatedPayload>(
       return;
     }
 
-    // 2. Log and alert
+    // 2. Log and alert — use exact KellyResult field names from governance/types.ts
     const { survival, kelly, alert } = result;
     console.log(
       `[GovernanceScoreUpdated] ${entity_type}=${entity_id} ` +
       `G=${governance_score.toFixed(3)} h=${survival.hazard_rate.toFixed(4)} ` +
       `S(T)=${survival.survival_prob.toFixed(3)} ` +
-      `Kelly=${kelly.kelly_fraction.toFixed(4)} ` +
+      `Kelly=${kelly.governance_kelly.toFixed(4)} ` +
       `riskPerTrade=$${kelly.risk_per_trade.toFixed(0)} ` +
       `signal=${kelly.signal}`
     );
@@ -73,7 +73,7 @@ bus.subscribe<GovernanceScoreUpdatedPayload>(
       );
     }
 
-    // 3. Update kelly_fraction in portfolio store for any position matching entity_id
+    // 3. Log updated Kelly for any portfolio position matching entity_id
     for (const entry of portfolioStore.allPortfolios()) {
       const pos = entry.positions.find((p) => p.security_id === entity_id);
       if (pos) {
