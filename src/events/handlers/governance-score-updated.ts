@@ -22,7 +22,7 @@ bus.subscribe<GovernanceScoreUpdatedPayload>(
       shadow    = 0,
     } = event.payload;
 
-    // 1. Run governance scorer
+    // 1. Run governance scorer — field names must match HazardParams in governance/types.ts
     let result;
     try {
       result = runGovernanceScorer({
@@ -42,11 +42,11 @@ bus.subscribe<GovernanceScoreUpdatedPayload>(
         horizon_days:         252,
         fractional_kelly_factor: Number(process.env.FRACTIONAL_KELLY ?? 0.25),
         hazard_params: {
-          h0:     Number(process.env.H0            ?? 0.01),
-          beta_G: Number(process.env.BETA_G        ?? 1.5),
-          beta_v: Number(process.env.BETA_VELOCITY ?? 0.8),
-          beta_V: Number(process.env.BETA_VOLUME   ?? 0.5),
-          beta_S: Number(process.env.BETA_SHADOW   ?? 1.2),
+          h0:           Number(process.env.H0            ?? 0.01),
+          beta_G:       Number(process.env.BETA_G        ?? 1.5),
+          beta_velocity: Number(process.env.BETA_VELOCITY ?? 0.8),
+          beta_volume:   Number(process.env.BETA_VOLUME   ?? 0.5),
+          beta_shadow:   Number(process.env.BETA_SHADOW   ?? 1.2),
         },
       });
     } catch (err) {
@@ -54,7 +54,7 @@ bus.subscribe<GovernanceScoreUpdatedPayload>(
       return;
     }
 
-    // 2. Log and alert — use exact KellyResult field names from governance/types.ts
+    // 2. Log and alert — exact field names from KellyResult & GovernanceSurvivalResult
     const { survival, kelly, alert } = result;
     console.log(
       `[GovernanceScoreUpdated] ${entity_type}=${entity_id} ` +
