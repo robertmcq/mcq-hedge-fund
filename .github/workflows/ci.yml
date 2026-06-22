@@ -16,15 +16,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          # NOTE: cache disabled until package-lock.json is fully regenerated
+          node-version: '24'
+          # Re-enable once real package-lock.json is committed:
           # cache: 'npm'
           # cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        # Using npm install (not npm ci) because the committed package-lock.json
-        # is a stub (no resolved packages). Once a real lock file is committed,
-        # revert this to: npm ci
+        # npm install used while package-lock.json is a stub.
+        # Revert to: npm ci  once a complete lockfile is committed.
         run: npm install
 
       - name: Type check
