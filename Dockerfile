@@ -5,9 +5,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-# npm install used while package-lock.json is a stub.
-# Once a complete lockfile is committed, revert to: npm ci --ignore-scripts
-RUN npm install --ignore-scripts
+RUN npm ci --ignore-scripts
 
 COPY tsconfig*.json ./
 COPY src ./src
@@ -23,9 +21,7 @@ WORKDIR /app
 RUN addgroup -S mcq && adduser -S mcq -G mcq
 
 COPY package*.json ./
-# npm install --omit=dev used while package-lock.json is a stub.
-# Revert to: npm ci --omit=dev --ignore-scripts once real lockfile is committed.
-RUN npm install --omit=dev --ignore-scripts
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /app/dist ./dist
 COPY src/db/schema.sql ./src/db/schema.sql
