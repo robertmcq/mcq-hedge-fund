@@ -67,7 +67,10 @@ export class KalshiFeed extends EventEmitter {
       path,
     });
 
-    this.ws = new WebSocket(this.config.wsUrl, { headers: authHeaders });
+    // Cast to Record<string, string> — ws library accepts this shape for HTTP upgrade headers
+    this.ws = new WebSocket(this.config.wsUrl, {
+      headers: authHeaders as Record<string, string>,
+    });
 
     this.ws.on('open', () => {
       console.log('[KalshiFeed] Connected');

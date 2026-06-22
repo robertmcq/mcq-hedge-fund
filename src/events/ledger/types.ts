@@ -6,6 +6,8 @@
  * which is required for replayAggregate() to build isolated projections.
  */
 
+export type EventSchemaVersion = 1;
+
 export interface LedgerEvent<T = unknown> {
   /** Monotonic sequence assigned by Postgres BIGSERIAL. Undefined before insert. */
   seq?:            number;
@@ -13,7 +15,7 @@ export interface LedgerEvent<T = unknown> {
   event_type:      string;
   /** Owning entity: portfolio_id, security_id, policy_id, 'system', etc. */
   aggregate_id:    string;
-  schema_version:  1;
+  schema_version:  EventSchemaVersion;
   payload:         T;
   occurred_at:     string;
   correlation_id?: string;

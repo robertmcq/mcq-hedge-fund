@@ -36,8 +36,9 @@ export class KalshiClient {
   private urlFor(path: string, query?: Record<string, string | number | boolean>): string {
     const base = `${this.baseUrl}${path}`;
     if (!query || !Object.keys(query).length) return base;
+    // Cast entries to [string, string][] so URLSearchParams constructor is satisfied
     const params = new URLSearchParams(
-      Object.entries(query).map(([k, v]) => [k, String(v)])
+      Object.entries(query).map(([k, v]) => [k, String(v)] as [string, string])
     );
     return `${base}?${params.toString()}`;
   }

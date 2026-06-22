@@ -20,29 +20,34 @@ bus.subscribe<GovernanceScoreUpdatedPayload>(
       velocity  = 0,
       volume    = 0,
       shadow    = 0,
-      as_of,
     } = event.payload;
 
     // 1. Run governance scorer
     let result;
     try {
       result = runGovernanceScorer({
-        entity_id,
-        entity_type,
-        governance_score,
-        velocity,
-        volume,
-        shadow,
-        win_rate:          0.55,   // baseline — override via config when available
-        avg_win_loss_ratio: 1.8,
-        equity:            1_000_000,
-        horizon_days:      252,
-        h0:     Number(process.env.H0            ?? 0.01),
-        beta_G: Number(process.env.BETA_G        ?? 1.5),
-        beta_v: Number(process.env.BETA_VELOCITY ?? 0.8),
-        beta_V: Number(process.env.BETA_VOLUME   ?? 0.5),
-        beta_S: Number(process.env.BETA_SHADOW   ?? 1.2),
-        fractional_kelly:  Number(process.env.FRACTIONAL_KELLY ?? 0.25),
+        governance: {
+          entity_id,
+          entity_type,
+          governance_score,
+          velocity,
+          volume,
+          shadow,
+        },
+        win_rate:             0.55,
+        avg_win:              1.8,
+        avg_loss:             1.0,
+        enforcement_loss:     0.5,
+        account_equity:       1_000_000,
+        horizon_days:         252,
+        fractional_kelly_factor: Number(process.env.FRACTIONAL_KELLY ?? 0.25),
+        hazard_params: {
+          h0:     Number(process.env.H0            ?? 0.01),
+          beta_G: Number(process.env.BETA_G        ?? 1.5),
+          beta_v: Number(process.env.BETA_VELOCITY ?? 0.8),
+          beta_V: Number(process.env.BETA_VOLUME   ?? 0.5),
+          beta_S: Number(process.env.BETA_SHADOW   ?? 1.2),
+        },
       });
     } catch (err) {
       console.error('[GovernanceScoreUpdated] Scorer error:', (err as Error).message);
@@ -50,12 +55,12 @@ bus.subscribe<GovernanceScoreUpdatedPayload>(
     }
 
     // 2. Log and alert
-    const { hazard, kelly, alert } = result;
+    const { survival, kelly, alert } = result;
     console.log(
       `[GovernanceScoreUpdated] ${entity_type}=${entity_id} ` +
-      `G=${governance_score.toFixed(3)} h=${hazard.hazard_rate.toFixed(4)} ` +
-      `S(T)=${hazard.survival_prob.toFixed(3)} ` +
-      `Kelly=${kelly.kelly_fraction_gov.toFixed(4)} ` +
+      `G=${governance_score.toFixed(3)} h=${survival.hazard_rate.toFixed(4)} ` +
+      `S(T)=${survival.survival_prob.toFixed(3)} ` +
+      `Kelly=${kelly.kelly_fraction.toFixed(4)} ` +
       `riskPerTrade=$${kelly.risk_per_trade.toFixed(0)} ` +
       `signal=${kelly.signal}`
     );
