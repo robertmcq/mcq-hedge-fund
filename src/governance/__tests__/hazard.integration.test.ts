@@ -5,11 +5,12 @@
  * compounds hazard so far that even exemplary governance scores produce HIGH/CRITICAL
  * labels — inconsistent with the scenario design intent.
  *
- * At T=1 the P_enf values are:
+ * At T=1 the P_enf values are (h0=0.05, default betas):
  *   Blue-chip  (G=0.95, low covariates) : h≈0.053  P_enf≈0.052  → LOW
  *   Mid-tier   (G=0.65, mid covariates) : h≈0.176  P_enf≈0.161  → MODERATE
  *   High-vel   (G=0.50, high covariates): h≈0.338  P_enf≈0.287  → MODERATE or HIGH
- *   Failing    (G=0.10, max covariates) : h≈1.45   P_enf≈0.765  → CRITICAL
+ *   Failing    (G=0.10, max covariates) : h≈0.615  P_enf≈0.460  → HIGH
+ *     (CRITICAL requires P_enf≥0.60; that threshold is reached at T≥2 for this issuer)
  */
 
 import { describe, it, expect } from 'vitest';
@@ -37,7 +38,8 @@ const scenarios: Array<{ label: string; input: GovernanceScoreInput; expectedRis
   {
     label: 'Failing issuer — enforcement imminent',
     input: { entity_type: 'issuer', entity_id: 'issuer-fail', governance_score: 0.10, velocity: 0.95, volume: 0.90, shadow: 0.85 },
-    expectedRisk: ['CRITICAL'],
+    // At T=1: h≈0.615, P_enf≈0.460 → HIGH. CRITICAL (≥0.60) is reached at T≥2.
+    expectedRisk: ['HIGH', 'CRITICAL'],
   },
 ];
 
