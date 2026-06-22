@@ -2,12 +2,13 @@
  * Governance Scoring Module — Master Scorer
  *
  * Orchestrates the full governance pipeline for a single entity:
- *   1. Compute hazard rate
- *   2. Compute survival & enforcement probability
- *   3. Compute governance-adjusted EV
- *   4. Compute governance-adjusted Kelly sizing
- *   5. Evaluate alerts
- *   6. Return unified GovernanceDecision
+ *   1. Validate input shape (runtime guard — catches flat-payload mismatches from ledger)
+ *   2. Compute hazard rate
+ *   3. Compute survival & enforcement probability
+ *   4. Compute governance-adjusted EV
+ *   5. Compute governance-adjusted Kelly sizing
+ *   6. Evaluate alerts
+ *   7. Return unified GovernanceDecision
  */
 
 import { computeGovernanceSurvival } from './hazard';
@@ -55,7 +56,57 @@ export interface ScorerInput {
   hazard_params?: HazardParams;
 }
 
+/**
+ * Runtime shape guard — throws early with a descriptive error rather than
+ * silently producing NaN survival probabilities from an undefined governance object.
+ *
+ * This catches the most common live-data mismatch: a ledger event written with
+ * flat governance fields at the top level instead of the expected nested shape.
+ */
+function assertScorerInput(input: unknown): asserts input is ScorerInput {
+  if (!input || typeof input !== 'object') {
+    throw new TypeError('[GovernanceScorer] Input must be a non-null object');
+  }
+  const i = input as Record<string, unknown>;
+
+  if (!i['governance'] || typeof i['governance'] !== 'object') {
+    throw new TypeError(
+      '[GovernanceScorer] input.governance is missing or not an object. ' +
+      'Expected nested GovernanceScoreInput shape. ' +
+      'Got: ' + JSON.stringify(i['governance'])
+    );
+  }
+
+  const g = i['governance'] as Record<string, unknown>;
+  const requiredGovFields: Array<keyof GovernanceScoreInput> = [
+    'entity_type', 'entity_id', 'governance_score', 'velocity', 'volume', 'shadow',
+  ];
+  for (const field of requiredGovFields) {
+    if (g[field] === undefined || g[field] === null) {
+      throw new TypeError(
+        `[GovernanceScorer] input.governance.${field} is missing. ` +
+        'Check that the event payload uses the nested governance shape.'
+      );
+    }
+  }
+
+  const numericFields: Array<keyof ScorerInput> = [
+    'horizon_days', 'win_rate', 'avg_win', 'avg_loss', 'enforcement_loss', 'account_equity',
+  ];
+  for (const field of numericFields) {
+    if (typeof i[field] !== 'number' || isNaN(i[field] as number)) {
+      throw new TypeError(
+        `[GovernanceScorer] input.${field} must be a finite number. Got: ${i[field]}`
+      );
+    }
+  }
+}
+
 export function runGovernanceScorer(input: ScorerInput): GovernanceDecision {
+  // Guard first — surfaces shape mismatches as thrown errors so the replay
+  // engine captures them in errors[] rather than silently producing NaN output.
+  assertScorerInput(input);
+
   const {
     governance,
     horizon_days,
@@ -68,14 +119,14 @@ export function runGovernanceScorer(input: ScorerInput): GovernanceDecision {
     hazard_params,
   } = input;
 
-  // Step 1 & 2: Survival model
+  // Step 2 & 3: Survival model
   const survival = computeGovernanceSurvival(
     governance,
     horizon_days,
     hazard_params
   );
 
-  // Step 3: Governance EV
+  // Step 4: Governance EV
   const expected_value = computeGovernanceEV(
     win_rate,
     avg_win,
@@ -84,7 +135,7 @@ export function runGovernanceScorer(input: ScorerInput): GovernanceDecision {
     survival
   );
 
-  // Step 4: Kelly sizing
+  // Step 5: Kelly sizing
   const kelly = computeGovernanceKelly({
     win_rate,
     avg_win,
@@ -94,10 +145,10 @@ export function runGovernanceScorer(input: ScorerInput): GovernanceDecision {
     fractional_kelly_factor,
   });
 
-  // Step 5: Alert evaluation
+  // Step 6: Alert evaluation
   const alert = evaluateGovernanceAlert(survival);
 
-  // Step 6: Summary
+  // Step 7: Summary
   const summary: GovernanceDecisionSummary = {
     risk_label:           survival.risk_label,
     kelly_signal:         kelly.signal,
