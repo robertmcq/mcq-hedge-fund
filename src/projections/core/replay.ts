@@ -29,11 +29,11 @@ export async function loadAggregateEvents(
   }
 
   const { rows } = await db.query<{
-    seq: string; event_id: string; event_type: string;
+    seq: string; event_id: string; event_type: string; aggregate_id: string;
     schema_version: number; payload: unknown; occurred_at: Date;
     correlation_id: string | null; source: string; metadata: unknown;
   }>(
-    `SELECT seq, event_id, event_type, schema_version, payload,
+    `SELECT seq, event_id, event_type, aggregate_id, schema_version, payload,
             occurred_at, correlation_id, source, metadata
      FROM event_ledger
      WHERE aggregate_id = $1 ${seqClause}
@@ -45,11 +45,13 @@ export async function loadAggregateEvents(
     seq:            Number(r.seq),
     event_id:       r.event_id,
     event_type:     r.event_type,
+    aggregate_id:   r.aggregate_id,
     schema_version: r.schema_version as 1,
     payload:        r.payload,
     occurred_at:    r.occurred_at.toISOString(),
     correlation_id: r.correlation_id ?? undefined,
     source:         r.source as LedgerEvent['source'],
+    metadata:       r.metadata ?? undefined,
   }));
 }
 
