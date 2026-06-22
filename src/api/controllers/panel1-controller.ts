@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { runDCFEngine } from '../../panels/panel1-dcf/engine';
+import { runReverseDCF as runReverseDCFEngine } from '../../panels/panel1-dcf/engine';
 import type { ReverseDCFInput } from '../../panels/panel1-dcf/types';
 
 export async function runReverseDCF(
@@ -9,7 +9,7 @@ export async function runReverseDCF(
 ): Promise<void> {
   try {
     const input = req.body as ReverseDCFInput;
-    const result = runDCFEngine(input);
+    const result = runReverseDCFEngine(input);
     res.json({ ok: true, data: result });
   } catch (err) {
     next(err);

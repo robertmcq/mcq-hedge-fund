@@ -23,15 +23,14 @@ import type {
   KalshiTickerMsg,
   KalshiTradeMsg,
   KalshiFillMsg,
-  LocalOrderbook,
 } from './types';
 
 export interface KalshiFeedConfig {
-  wsUrl: string;          // from KALSHI_WS_URL env var
-  keyId: string;          // from KALSHI_API_KEY_ID
-  privateKeyPem: string;  // loaded from secret at runtime
-  reconnectMs?: number;   // default 3000
-  pingIntervalMs?: number; // default 20000
+  wsUrl: string;
+  keyId: string;
+  privateKeyPem: string;
+  reconnectMs?: number;
+  pingIntervalMs?: number;
 }
 
 export interface FeedSubscription {
@@ -52,13 +51,12 @@ export class KalshiFeed extends EventEmitter {
 
   constructor(private config: KalshiFeedConfig) {
     super();
-    this.reconnectMs   = config.reconnectMs   ?? 3000;
+    this.reconnectMs    = config.reconnectMs    ?? 3000;
     this.pingIntervalMs = config.pingIntervalMs ?? 20000;
   }
 
   connect(): void {
     if (this.closed) return;
-    // Auth headers signed with path = '/trade-api/ws/v2'
     const path = new URL(this.config.wsUrl).pathname;
     const authHeaders = buildKalshiAuthHeaders({
       keyId:         this.config.keyId,
@@ -67,16 +65,17 @@ export class KalshiFeed extends EventEmitter {
       path,
     });
 
-    // Cast to Record<string, string> — ws library accepts this shape for HTTP upgrade headers
-    this.ws = new WebSocket(this.config.wsUrl, {
-      headers: authHeaders as Record<string, string>,
-    });
+    // KalshiAuthHeaders has specific literal keys; cast through unknown so the
+    // ws library receives it as a plain header map for the HTTP upgrade request.
+    this.ws = new WebSocket(
+      this.config.wsUrl,
+      { headers: authHeaders as unknown as Record<string, string> }
+    );
 
     this.ws.on('open', () => {
       console.log('[KalshiFeed] Connected');
       this.emit('connected');
       this._startPing();
-      // Re-subscribe all active subscriptions (handles reconnect)
       for (const sub of this.subscriptions) {
         this._sendSubscribe(sub);
       }
@@ -206,7 +205,6 @@ export class KalshiFeed extends EventEmitter {
   }
 }
 
-/** Singleton factory — reads config from env at startup. */
 export function createKalshiFeed(privateKeyPem: string): KalshiFeed {
   const wsUrl = process.env.KALSHI_WS_URL;
   const keyId = process.env.KALSHI_API_KEY_ID;

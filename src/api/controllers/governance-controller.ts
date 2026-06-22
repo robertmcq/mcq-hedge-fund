@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { runGovernanceScorer } from '../../governance/scorer';
-import type { GovernanceScorerInput } from '../../governance/types';
+import type { ScorerInput } from '../../governance/scorer';
 
 export async function scoreGovernance(
   req: Request,
@@ -8,7 +8,7 @@ export async function scoreGovernance(
   next: NextFunction
 ): Promise<void> {
   try {
-    const input = req.body as GovernanceScorerInput;
+    const input = req.body as ScorerInput;
     const result = runGovernanceScorer(input);
     res.json({ ok: true, data: result });
   } catch (err) {
