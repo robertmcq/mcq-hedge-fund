@@ -14,9 +14,12 @@ h(t | G, X) = h₀(t) · exp(βG·(1-G) + βᵀX)
 
 Where:
 - `G` = normalized governance score (0.0 – 1.0; higher = better governance)
-- `X` = covariate vector: [Velocity, Volume, Shadow, ...]
+- `X` = MCQ Governance Covariate Model: [Velocity, Volume, Shadow, ...]
 - `h₀(t)` = baseline hazard rate (calibrated from historical enforcement data)
 - `βG`, `β` = coefficients (calibrated per entity class)
+
+**Implementation note.** Governance Score, Velocity, Volume, and Shadow are MCQ-specific
+implementation constructs. They are not standard academic variables.
 
 ---
 
@@ -74,6 +77,10 @@ RiskPerTrade = AccountEquity · f_fraction · f_Kelly_gov
   f_fraction = 0.25 (fractional Kelly safety factor, adjustable)
 ```
 
+**Implementation note.** Fractional Kelly is used here as a conservative implementation
+choice under parameter uncertainty. No fixed mapping is assumed between fractional Kelly
+and any Sharpe-optimal leverage multiple.
+
 ---
 
 ## 5. Sheets / Apps Script Implementation
@@ -120,3 +127,25 @@ console.log(`Risk per trade: $${riskPerTrade.toFixed(2)}`);
 | 0.6 (moderate) | Moderate | Reduced | Smaller position |
 | 0.3 (weak) | High | Significantly reduced | Minimal or no position |
 | 0.1 (failing) | Very high | Near zero or negative | Block — do not trade |
+
+---
+
+## 7. Theoretical References
+
+The MCQ hazard-Kelly framework draws from three separate layers:
+
+**Established theory.** The proportional-hazard form `h(t|X) = h₀(t)·exp(βᵀX)` follows the
+Cox proportional hazards tradition. Kelly sizing originates with John Kelly Jr. and later
+practitioner use in position sizing. Mean-variance optimisation and factor models come from
+Markowitz and subsequent asset-pricing literature.
+
+**Industry practice.** Multifactor decomposition, risk-budgeting, liquidity caps, and
+fractional Kelly overlays are widely used implementation patterns in investment firms,
+though details vary by strategy and shop.
+
+**MCQ implementation.** Governance Score, Enforcement Loss, the MCQ Governance Covariate
+Model, and the five-panel governance architecture are internal MCQ constructs. They should
+not be interpreted as academic or university-course terminology.
+
+These references inform design choices but are not reproduced here. A canonical reading
+list is maintained in `docs/references/bibliography.md`.
