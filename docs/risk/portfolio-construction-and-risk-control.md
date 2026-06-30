@@ -8,9 +8,9 @@ It separates three layers clearly:
 - **MCQ implementation**: governance-adjusted expected value, Panel 5 policy objects,
   and the MCQ Governance Covariate Model
 
-Public university courses and open materials informed background reading for this file,
-but this document is an original MCQ working paper. It does not imply endorsement,
-affiliation, or derivation from any university course materials.
+This document is an original MCQ working paper informed by standard quantitative finance
+pedagogy (see `docs/references/bibliography.md`). It does not imply endorsement,
+affiliation, or derivation from any third-party course materials.
 
 ---
 
@@ -23,16 +23,16 @@ three inputs:
 2. **Risk model** — covariance matrix Σ, typically decomposed into factors plus idiosyncratic risk
 3. **Constraints** — policy objects from Panel 5: leverage, concentration, liquidity, factor caps
 
-The classical mean-variance frontier (Markowitz) finds weights w that maximise:
+**Established theory.** The classical mean-variance frontier (Markowitz, 1952) finds weights
+w that maximise:
 
 ```
 U = wᵀμ - (λ/2) · wᵀΣw
 ```
 
-Where μ is the expected return vector, Σ is the covariance matrix, and λ is the risk
-aversion parameter.
+Where μ is the expected return vector, Σ is the covariance matrix, and λ is risk aversion.
 
-**MCQ implementation.** MCQ exposes λ as a governance-configurable parameter. It also uses
+**MCQ implementation.** MCQ exposes λ as a governance-configurable parameter and applies
 governance-adjusted expected returns:
 
 ```
@@ -42,14 +42,14 @@ governance-adjusted expected returns:
 where S(T) is the MCQ survival probability used as a discount factor on forecast alpha.
 
 In practice, raw Markowitz optimisation is unstable with noisy estimates. MCQ therefore
-expects shrinkage on Σ, signal decay weighting, and policy hard limits to stabilise the
-portfolio.
+applies covariance shrinkage, signal decay weighting, and hard policy constraints to
+stabilise the solution.
 
 ---
 
 ## 2. Factor Risk Decomposition
 
-Industry risk systems commonly model returns as:
+**Established theory.** Factor models decompose asset returns as:
 
 ```
 r_i = α_i + Σ_k(β_ik · f_k) + ε_i
@@ -58,16 +58,13 @@ r_i = α_i + Σ_k(β_ik · f_k) + ε_i
 Where f_k are common factor returns, β_ik are factor loadings, and ε_i is idiosyncratic
 residual risk.
 
-**Industry practice.** This is the basis of Barra-style and related multifactor risk models.
-Typical factors include market, sector, size, value, momentum, quality, profitability,
-and investment.
+**Industry practice.** Barra-style multifactor risk systems implement this decomposition
+using market, sector, size, value, momentum, quality, profitability, and investment factors.
 
 **MCQ implementation.** Panel 3 displays factor exposures in real time. A governance alert
-fires when any single factor exposure breaches its policy limit, even if gross/net dollar
-limits remain within mandate.
-
-The practical value is simple: a portfolio can look diversified by name count and still be
-dangerously concentrated in momentum or duration.
+fires when any single factor exposure breaches its Panel 5 policy limit, even if gross/net
+dollar limits remain within mandate. A portfolio can look diversified by name count and
+still be dangerously concentrated in a single factor.
 
 ---
 
@@ -91,14 +88,14 @@ MCQ computes and governs the following risk measures continuously:
 to PM/risk review.
 
 **MCQ implementation.** Panel 5 records these as machine-readable policy objects and routes
-exceptions to the governance queue.
+exceptions to the governance queue with a versioned audit trail.
 
 ---
 
 ## 4. Liquidity-Aware Sizing
 
-Position size is a function of both alpha and liquidity. In industry practice, liquidity
-limits are often expressed as a fraction of ADV and a market-impact tolerance.
+Position size is a function of both alpha and liquidity. Industry practice expresses
+liquidity limits as a fraction of ADV and a market-impact tolerance.
 
 **MCQ implementation.** MCQ applies a liquidity haircut before Kelly sizing:
 
@@ -107,16 +104,21 @@ LiquidityScore_i = ADV_participation_rate · MarketImpact(size_i)
 ```
 
 Positions with high estimated market impact are capped at the liquidity-adjusted size
-regardless of Kelly output. In stressed regimes, the ADV participation cap should tighten
-automatically.
+regardless of Kelly output.
 
-This is an implementation choice, not an academic theorem.
+Fractional Kelly (25% here) reduces concentration risk relative to full Kelly sizing,
+accounting for parameter uncertainty in win-rate and payoff ratio estimates from finite
+backtests. The fractional setting is an MCQ implementation choice; it should be reviewed
+per strategy and regime.
+
+In stressed regimes, the ADV participation cap tightens automatically. This is an
+MCQ governance implementation choice, not an academic theorem.
 
 ---
 
 ## 5. Performance Evaluation
 
-MCQ evaluates strategy performance on six dimensions:
+**Established theory.** Standard performance metrics:
 
 ```
 Sharpe Ratio      = (Rp - Rf) / σp
@@ -127,20 +129,18 @@ Hit Rate          = # profitable trades / total trades
 Alpha (CAPM)      = Rp - [Rf + β(Rm - Rf)]
 ```
 
-**Established theory.** Sharpe, CAPM alpha, and related attribution measures come from
-standard asset pricing and performance evaluation literature.
-
 **MCQ implementation.** Factor-adjusted alpha is the primary performance measure, not raw
-Sharpe. A strategy with strong headline returns but uncompensated factor exposure should not
-be credited as true skill.
+Sharpe. A strategy with strong headline returns but uncompensated factor exposure does not
+represent demonstrable skill. Panel 4 decomposes returns into factor contributions and
+residual alpha on a rolling window.
 
 ---
 
 ## 6. Drawdown Governance
 
-Drawdown is both a risk metric and an operating-control trigger.
+Drawdown is both a risk metric and an active operating-control trigger.
 
-An MCQ drawdown ladder can be implemented as follows:
+**MCQ implementation.** MCQ drawdown escalation ladder:
 
 | Drawdown Level | Action |
 |---|---|
@@ -149,30 +149,34 @@ An MCQ drawdown ladder can be implemented as follows:
 | > 15% from peak | New entries blocked; reduction queue opens |
 | > 20% from peak | Full portfolio review required before trading resumes |
 
-These thresholds are MCQ policy objects rather than universal industry standards.
-The important principle is escalation discipline, versioned rules, and auditability.
+These thresholds are MCQ policy objects, not universal industry standards. The critical
+principle is escalation discipline, versioned rules, and auditability.
 
 ---
 
 ## 7. Portfolio Survival Approximation
 
 Individual positions have their own MCQ survival probability S_i(T) from the governance
-hazard model. At the portfolio level, MCQ may use the following **portfolio survival
-approximation**:
+hazard model.
+
+**MCQ approximation.** At the portfolio level, MCQ approximates portfolio-level survival
+probability as the geometric weighted product of individual position survival probabilities,
+adjusted for tail dependence in stress regimes:
 
 ```
 S_portfolio(T) = Π S_i(T)^(w_i / Σw_i)
 ```
 
-This is an MCQ modelling assumption, not a general finance result. It is a useful way to
-express that a portfolio of many marginal exposures may deserve a steeper governance haircut
-than a portfolio of fewer, cleaner, higher-conviction positions.
+This is an MCQ modelling assumption, not a general finance theorem. It is a tractable
+approximation that penalises portfolios of many marginal exposures relative to portfolios
+of fewer, higher-conviction, cleaner-governance positions.
 
-A portfolio-level Kelly fraction can then be further discounted:
+In later calibration phases, this should be extended to model explicit tail dependence
+between positions rather than assuming separability. In a regulatory deposition or LP
+review, this formula should always be presented as an MCQ approximation.
+
+A portfolio-level Kelly fraction is then further discounted:
 
 ```
 f_portfolio = f_Kelly_gov · S_portfolio(T)
 ```
-
-In later calibration phases, this should be extended to allow explicit dependence and tail
-correlation between positions rather than assuming separability.

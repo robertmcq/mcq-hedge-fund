@@ -4,9 +4,9 @@ This document defines the eight canonical hedge fund strategy families recognise
 institutional investment community, maps each to MCQ panel schema objects, and identifies
 the key risk vectors the governance engine must price into the hazard function.
 
-Public university courses and open materials informed the background reading for this
-file, but this document is an original MCQ working paper. It does not imply endorsement,
-affiliation, or derivation from any university course materials.
+This document is an original MCQ working paper informed by standard quantitative finance
+pedagogy (see `docs/references/bibliography.md`). It does not imply endorsement,
+affiliation, or derivation from any third-party course materials.
 
 ---
 
@@ -71,8 +71,9 @@ stagflation / deflation quadrant). Cross-asset factor exposure heatmap in Panel 
 - Correlated scenario risk across seemingly unrelated positions
 
 **Governance treatment.** Leverage ratio and maximum notional per asset class are hard
-limits in Panel 5. The hazard budget incorporates macro-volatility regime as an MCQ
-implementation input; when macro volatility spikes, position sizing compresses automatically.
+limits in Panel 5. The MCQ Governance Covariate Model incorporates macro-volatility regime
+as an implementation input; when macro volatility spikes, position sizing compresses
+automatically via the hazard discount on Kelly.
 
 ---
 
@@ -93,9 +94,9 @@ Panel 3 tracks delta, vega, and credit spread exposure of the convertible book.
 - Short rebate erosion on the equity hedge
 
 **Governance treatment.** Credit exposure limits and convertible gross/net notional
-caps are MCQ policy objects. The MCQ Governance Covariate Model applies issuer-level
-credit quality as an additional implementation covariate alongside G, Velocity, Volume,
-and Shadow.
+caps are MCQ policy objects in Panel 5. The MCQ Governance Covariate Model incorporates
+issuer-level credit quality as an additional implementation covariate alongside the
+Governance Score G, Velocity, Volume, and Shadow.
 
 ---
 
@@ -116,9 +117,8 @@ Panel 3 (duration, DV01, and factor sensitivity decomposition per position).
 - Regulatory capital requirements force balance sheet compression at worst times
 
 **Governance treatment.** DV01 limits and repo concentration limits are hard-coded
-Panel 5 policy objects. This strategy class should use a more conservative fractional
-Kelly setting than equity strategies because financing and liquidity tails dominate the
-risk distribution.
+Panel 5 policy objects. This strategy class warrants a lower fractional Kelly setting
+than equity strategies because financing and liquidity tails dominate the risk distribution.
 
 ---
 
@@ -154,10 +154,10 @@ sideways/chopping. Trend strength score feeds the Kelly sizing module in Panel 3
 **Key risk vectors.**
 - Whipsaw: markets reverse sharply and repeatedly; stop-outs compound losses
 - Crowded momentum: when many CTAs hold the same trend, reversal is violent
-- Low standalone Sharpe but strong diversification in multi-strategy context
+- Low standalone Sharpe but strong diversification value in multi-strategy context
 
-**Governance treatment.** Trend strength is an MCQ implementation covariate in the
-hazard budget; weak or reversing trend compresses position size automatically. The
+**Governance treatment.** Trend strength is an input covariate in the MCQ Governance
+Covariate Model; weak or reversing trend compresses position size automatically. The
 strategy is flagged with a diversification annotation so sizing reflects cross-strategy
 correlation benefits.
 
@@ -174,14 +174,14 @@ Queue tracks cross-strategy concentration: total gross leverage, total notional 
 class, and maximum drawdown per strategy bucket.
 
 **Key risk vectors.**
-- Risk aggregation failure: seemingly independent strategies all blow up simultaneously
+- Risk aggregation failure: seemingly independent strategies blow up simultaneously
 - Capital allocation model becomes stale if regime assumptions change
 - Operational complexity: multiple brokers, data feeds, risk systems
 
 **Governance treatment.** MCQ is designed first for multi-strategy governance. The
 cross-strategy risk budget is a top-level policy object; individual strategy Kelly
 sizes are subordinated to a portfolio-level survival approximation calculated at the
-aggregate level.
+aggregate level (see `docs/risk/portfolio-construction-and-risk-control.md`, Section 7).
 
 ---
 
