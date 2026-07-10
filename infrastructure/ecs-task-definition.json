@@ -1,0 +1,54 @@
+{
+  "family": "mcq-hedge-fund",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::553963239666:role/mcq-hedge-fund-execution-role",
+  "taskRoleArn":      "arn:aws:iam::553963239666:role/mcq-hedge-fund-task-role",
+  "containerDefinitions": [
+    {
+      "name": "mcq-hedge-fund",
+      "image": "553963239666.dkr.ecr.us-east-1.amazonaws.com/mcq-hedge-fund:latest",
+      "portMappings": [
+        { "containerPort": 3000, "protocol": "tcp" }
+      ],
+      "essential": true,
+      "environment": [
+        { "name": "NODE_ENV",          "value": "production" },
+        { "name": "AWS_REGION",        "value": "us-east-1" },
+        { "name": "PORT",              "value": "3000" },
+        { "name": "H0",                "value": "0.01" },
+        { "name": "BETA_G",            "value": "1.5" },
+        { "name": "BETA_VELOCITY",     "value": "0.8" },
+        { "name": "BETA_VOLUME",       "value": "0.5" },
+        { "name": "BETA_SHADOW",       "value": "1.2" },
+        { "name": "FRACTIONAL_KELLY",  "value": "0.25" },
+        { "name": "KALSHI_BASE_URL",   "value": "https://external-api.kalshi.com/trade-api/v2" },
+        { "name": "KALSHI_WS_URL",     "value": "wss://external-api-ws.kalshi.com/trade-api/ws/v2" }
+      ],
+      "secrets": [
+        { "name": "API_KEY",                  "valueFrom": "arn:aws:secretsmanager:us-east-1:553963239666:secret:MCQ_HEDGE_FUND_API_KEY" },
+        { "name": "DATABASE_URL",             "valueFrom": "arn:aws:secretsmanager:us-east-1:553963239666:secret:MCQ_HEDGE_FUND_DATABASE_URL" },
+        { "name": "KALSHI_API_KEY_ID",        "valueFrom": "arn:aws:secretsmanager:us-east-1:553963239666:secret:KALSHI_API_KEY_ID" },
+        { "name": "KALSHI_PRIVATE_KEY_PEM",   "valueFrom": "arn:aws:secretsmanager:us-east-1:553963239666:secret:KALSHI_PRIVATE_KEY_PEM" },
+        { "name": "KALSHI_TICKERS",           "valueFrom": "arn:aws:secretsmanager:us-east-1:553963239666:secret:KALSHI_TICKERS" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/mcq-hedge-fund",
+          "awslogs-region":        "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command":     ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"],
+        "interval":    30,
+        "timeout":     5,
+        "retries":     3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
