@@ -180,3 +180,43 @@ A portfolio-level Kelly fraction is then further discounted:
 ```
 f_portfolio = f_Kelly_gov · S_portfolio(T)
 ```
+
+---
+
+## 7.x Theoretical Grounding: Governance Discount vs. Martingale Baseline
+
+The survival-probability discount applied in this model —
+`f_portfolio = f_Kelly_gov · S_portfolio(T)` — is not a claim that governance structure
+alone produces positive expected value. Under the Optional Stopping Theorem, no bounded
+stopping rule or repositioning strategy can extract positive expected value from a process
+with zero drift; a fair-game process remains fair regardless of how sophisticated the
+timing or sizing overlay is. Governance discipline, by itself, does not constitute drift.
+
+This model's claim is narrower and more defensible: S_portfolio(T) functions as a
+survival-conditioned discount on pre-existing forecast alpha (μ), not as a source of
+alpha. The formula only produces a defensible survival probability above the martingale
+baseline when μ itself represents demonstrable positive drift in the underlying factor
+model — i.e., when the Cox process hazard rate is calibrated against a signal with
+statistically documented edge, not governance structure mistaken for skill. Where μ
+reflects factor beta rather than genuine alpha, the governance discount reduces exposure
+to a fair or unfavorable process faster; it does not create edge where none exists.
+
+**Practical implication for LP and regulatory review.** Any presentation of this formula
+must make explicit that:
+
+1. The governance layer is a risk-reduction and capital-preservation mechanism, not an
+   alpha-generation mechanism.
+2. The survival probability improvement claimed is contingent on, and bounded by, the
+   independently validated alpha in μ — not an artifact of the discount formula itself.
+
+**Validation dependency.** The validation of μ as demonstrable alpha is governed by the
+MCQ Signal and Alpha Validation Standard
+(`docs/foundations/signal-and-alpha-validation.md`); no signal may be used as an input
+to the hazard-discounted Kelly framework until it has cleared the graduation criteria
+specified therein.
+
+*Theoretical framing informed by standard martingale theory (Optional Stopping Theorem),
+per MIT OpenCourseWare, 18.S096 Topics in Mathematics with Applications in Finance,
+Lecture 5 (Dr. Choongbum Lee), used under CC BY-NC-SA 4.0
+(https://creativecommons.org/licenses/by-nc-sa/4.0/). This document does not imply
+endorsement, affiliation, or derivation from MIT course materials.*
