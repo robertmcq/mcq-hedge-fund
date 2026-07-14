@@ -1,0 +1,43 @@
+name: Market Context Pipeline
+
+on:
+  schedule:
+    - cron: '0 14 * * 1-5'       # 9:00 AM ET daily open — full FRED + EDGAR + AV run
+    - cron: '30 14-21 * * 1-5'   # Every 30 min during market hours
+  workflow_dispatch:              # Manual trigger for testing
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run Market Context Pipeline
+        env:
+          FRED_API_KEY:           ${{ secrets.FRED_API_KEY }}
+          ALPHA_VANTAGE_API_KEY:  ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          AWS_REGION:             ${{ secrets.AWS_REGION }}
+          DATA_BUCKET:            ${{ secrets.DATA_BUCKET }}
+          AWS_ACCESS_KEY_ID:      ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY:  ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          WATCH_TICKERS:          'AAPL,MSFT,NVDA,SPY,QQQ'
+        run: npx ts-node src/data/orchestrator.ts
+
+      - name: Pipeline status
+        if: failure()
+        run: echo "[ALERT] Market Context Pipeline failed — check logs for FRED/EDGAR/AV errors"
