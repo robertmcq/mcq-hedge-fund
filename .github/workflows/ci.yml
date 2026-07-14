@@ -17,12 +17,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Type check
         run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
 
       - name: Run tests
         run: npm test
@@ -35,7 +39,6 @@ jobs:
     name: Seed ledger & validate replay engine
     runs-on: ubuntu-latest
     needs: test
-    # Only runs on main push — uses ephemeral Postgres service container
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     services:
@@ -59,9 +62,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build (compile src/ → dist/)
         run: npm run build
@@ -73,7 +77,6 @@ jobs:
             -f src/db/schema.sql
 
       - name: Seed ledger
-        # Run compiled JS — no ts-node ESM/CJS ambiguity
         run: node dist/scripts/seed-portfolio.js
         env:
           DATABASE_URL: postgresql://mcq_user:ci_password_123@localhost:5432/mcq_fund
@@ -85,7 +88,6 @@ jobs:
           FRACTIONAL_KELLY: '0.25'
 
       - name: Validate replay engine
-        # Run compiled JS — no ts-node ESM/CJS ambiguity
         run: node dist/scripts/validate-replay.js
         env:
           DATABASE_URL: postgresql://mcq_user:ci_password_123@localhost:5432/mcq_fund
