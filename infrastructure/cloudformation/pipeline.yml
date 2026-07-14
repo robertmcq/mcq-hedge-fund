@@ -1,0 +1,193 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MCQ Hedge Fund — Market Context Pipeline Infrastructure
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, staging]
+  DataBucket:
+    Type: String
+    Description: S3 bucket name for MarketContext JSON output
+  WatchTickers:
+    Type: String
+    Default: 'AAPL,MSFT,NVDA,SPY,QQQ'
+    Description: Comma-separated ticker list for pipeline ingestion
+
+Resources:
+
+  # ── S3 Bucket for MarketContext output ──────────────────────────────────────
+  MarketContextBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DataBucket
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveOldSnapshots
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+      Tags:
+        - Key: Project
+          Value: mcq-hedge-fund
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ── IAM Role for Lambda execution ───────────────────────────────────────────
+  PipelineLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub mcq-hedge-fund-pipeline-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: PipelineS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${DataBucket}
+                  - !Sub arn:aws:s3:::${DataBucket}/*
+        - PolicyName: PipelineSecretsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mcq-hedge-fund/*
+        - PolicyName: PipelineCloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # ── Secrets Manager entries (values injected via CI/CD) ─────────────────────
+  FredApiKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: mcq-hedge-fund/FRED_API_KEY
+      Description: FRED API key for macro data ingestion
+      Tags:
+        - Key: Project
+          Value: mcq-hedge-fund
+
+  AlphaVantageKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: mcq-hedge-fund/ALPHA_VANTAGE_API_KEY
+      Description: Alpha Vantage API key for price data
+      Tags:
+        - Key: Project
+          Value: mcq-hedge-fund
+
+  # ── CloudWatch Log Group ─────────────────────────────────────────────────────
+  PipelineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /mcq-hedge-fund/pipeline/${Environment}
+      RetentionInDays: 30
+
+  # ── EventBridge Rule — daily 9AM ET (14:00 UTC) ─────────────────────────────
+  DailyOpenRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub mcq-hedge-fund-daily-open-${Environment}
+      Description: Triggers full FRED + EDGAR + AV pipeline at market open
+      ScheduleExpression: 'cron(0 14 ? * MON-FRI *)'
+      State: ENABLED
+      Targets:
+        - Id: MarketContextPipelineDaily
+          Arn: !GetAtt PipelineLambdaPlaceholder.Arn
+          Input: !Sub '{"tickers":"${WatchTickers}","trigger":"daily-open"}'
+
+  # ── EventBridge Rule — every 30 min during market hours ─────────────────────
+  IntraMarketRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub mcq-hedge-fund-intraday-${Environment}
+      Description: Triggers intraday price refresh every 30 min during market hours
+      ScheduleExpression: 'cron(30 14-21 ? * MON-FRI *)'
+      State: ENABLED
+      Targets:
+        - Id: MarketContextPipelineIntraday
+          Arn: !GetAtt PipelineLambdaPlaceholder.Arn
+          Input: !Sub '{"tickers":"${WatchTickers}","trigger":"intraday"}'
+
+  # ── Lambda placeholder (image deployed via GitHub Actions) ──────────────────
+  PipelineLambdaPlaceholder:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub mcq-hedge-fund-pipeline-${Environment}
+      Description: Market Context Pipeline — FRED + EDGAR + Alpha Vantage orchestrator
+      Runtime: nodejs20.x
+      Handler: dist/data/orchestrator.handler
+      Role: !GetAtt PipelineLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          DATA_BUCKET: !Ref DataBucket
+          WATCH_TICKERS: !Ref WatchTickers
+          ENVIRONMENT: !Ref Environment
+          LOG_GROUP: !Sub /mcq-hedge-fund/pipeline/${Environment}
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200, body: 'placeholder — deploy via CI/CD' });
+      Tags:
+        - Key: Project
+          Value: mcq-hedge-fund
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ── EventBridge → Lambda permissions ────────────────────────────────────────
+  LambdaPermissionDaily:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt PipelineLambdaPlaceholder.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyOpenRule.Arn
+
+  LambdaPermissionIntraday:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt PipelineLambdaPlaceholder.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt IntraMarketRule.Arn
+
+Outputs:
+  BucketName:
+    Value: !Ref MarketContextBucket
+    Export:
+      Name: !Sub mcq-hedge-fund-data-bucket-${Environment}
+  LambdaFunctionName:
+    Value: !Ref PipelineLambdaPlaceholder
+    Export:
+      Name: !Sub mcq-hedge-fund-lambda-${Environment}
+  LambdaRoleArn:
+    Value: !GetAtt PipelineLambdaRole.Arn
+    Export:
+      Name: !Sub mcq-hedge-fund-lambda-role-arn-${Environment}
