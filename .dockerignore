@@ -12,3 +12,6 @@ coverage/
 *.test.ts
 *.spec.ts
 __tests__/
+# Stub lockfile causes npm install layer cache invalidation on every build.
+# Exclude until a real lockfile (with resolved packages) is committed.
+package-lock.json

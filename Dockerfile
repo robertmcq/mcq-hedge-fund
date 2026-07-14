@@ -4,8 +4,9 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-COPY package*.json ./
-# TODO: revert to 'npm ci --ignore-scripts' once real package-lock.json is committed
+# Copy manifest only — layer cache key is package.json hash.
+# npm install re-runs only when dependencies change.
+COPY package.json ./
 RUN npm install --ignore-scripts
 
 COPY tsconfig*.json ./
@@ -21,8 +22,7 @@ WORKDIR /app
 # Non-root user for security
 RUN addgroup -S mcq && adduser -S mcq -G mcq
 
-COPY package*.json ./
-# TODO: revert to 'npm ci --omit=dev --ignore-scripts' once real package-lock.json is committed
+COPY package.json ./
 RUN npm install --omit=dev --ignore-scripts
 
 COPY --from=builder /app/dist ./dist
