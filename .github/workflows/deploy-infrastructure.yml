@@ -1,0 +1,42 @@
+name: Deploy AWS Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/cloudformation/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-cfn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - name: Deploy CloudFormation Stack
+        run: |
+          aws cloudformation deploy \
+            --template-file infrastructure/cloudformation/pipeline.yml \
+            --stack-name mcq-hedge-fund-pipeline-prod \
+            --parameter-overrides \
+              Environment=prod \
+              DataBucket=${{ secrets.DATA_BUCKET }} \
+              WatchTickers='AAPL,MSFT,NVDA,SPY,QQQ' \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Output Stack Resources
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name mcq-hedge-fund-pipeline-prod \
+            --query 'Stacks[0].Outputs' \
+            --output table
