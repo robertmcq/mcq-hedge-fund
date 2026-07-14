@@ -3,7 +3,7 @@
  */
 
 import { KalshiClient } from './client';
-import { KalshiBalance, KalshiPosition, GetPositionsResponse } from './types';
+import type { KalshiBalance, GetPositionsResponse } from './types';
 
 export class KalshiPortfolioAdapter {
   constructor(private client: KalshiClient) {}

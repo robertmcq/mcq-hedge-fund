@@ -30,7 +30,7 @@ function classifyRegime(
   cpi: number,
   unemployment: number,
   spread: number,
-  fedFunds: number
+  _fedFunds: number
 ): { regime: RegimeLabel; confidence: number } {
   if (spread < 0 && cpi > 4)                        return { regime: 'STAGFLATION', confidence: 0.85 };
   if (spread < 0)                                   return { regime: 'RISK_OFF',    confidence: 0.75 };

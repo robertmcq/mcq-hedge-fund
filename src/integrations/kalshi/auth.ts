@@ -17,6 +17,7 @@
  */
 
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 
 export interface KalshiAuthHeaders {
   'KALSHI-ACCESS-KEY': string;
@@ -62,8 +63,6 @@ export function loadPrivateKeyPem(): string {
     return process.env.KALSHI_PRIVATE_KEY_PEM.replace(/\\n/g, '\n');
   }
   if (process.env.KALSHI_PRIVATE_KEY_PATH) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require('fs') as typeof import('fs');
     return fs.readFileSync(process.env.KALSHI_PRIVATE_KEY_PATH, 'utf8');
   }
   throw new Error(

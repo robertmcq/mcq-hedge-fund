@@ -8,7 +8,6 @@ import { withClient } from '../client';
 import { createActionItemPg, getActionItemPg, updateActionStatusPg } from './action-item-repository';
 import { createApprovalPg } from './approval-repository';
 import { appendDecisionLogPg } from './decision-log-repository';
-import { createActionItem } from '../../panels/panel5-governance/action-queue';
 import { hasPermission } from '../../panels/panel5-governance/utils';
 import type {
   ActionItem,
@@ -44,7 +43,7 @@ export async function pgApplyApprovalDecision(
           throw new Error(`User ${req.user.user_id} lacks TRADE_APPROVE permission or PM role`);
       }
 
-      let newStatus: ActionItem['status'] = req.decision === 'approve' ? 'approved'
+      const newStatus: ActionItem['status'] = req.decision === 'approve' ? 'approved'
         : req.decision === 'reject' ? 'rejected' : 'superseded';
 
       // 3. Update action status
@@ -100,3 +99,6 @@ export async function pgApplyApprovalDecision(
     }
   });
 }
+
+// Re-export for consumers that previously imported from this module
+export { updateActionStatusPg };

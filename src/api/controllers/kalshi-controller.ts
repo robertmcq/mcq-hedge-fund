@@ -8,15 +8,15 @@ import type { CreateOrderRequest } from '../../integrations/kalshi/types';
 function getAdapters() {
   const client = createKalshiClient();
   return {
-    markets: new KalshiMarketsAdapter(client),
-    orders: new KalshiOrdersAdapter(client),
+    markets:   new KalshiMarketsAdapter(client),
+    orders:    new KalshiOrdersAdapter(client),
     portfolio: new KalshiPortfolioAdapter(client),
   };
 }
 
 export async function getMarkets(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { markets, portfolio: _p, orders: _o } = getAdapters();
+    const { markets } = getAdapters();
     const data = await markets.getMarkets(req.query as Record<string, string>);
     res.json({ ok: true, data });
   } catch (err) { next(err); }

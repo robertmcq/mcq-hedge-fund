@@ -33,8 +33,6 @@ export async function replayFromLedger(opts: ReplayOptions): Promise<ReplayResul
   const start = Date.now();
   const cursor = await loadCursor(consumer_id);
   let currentSeq = from_seq ?? cursor.last_seq;
-  // Counts ALL events attempted (success + error) so callers can assert
-  // that no event was silently skipped during replay.
   let totalReplayed = 0;
   let lastSeq = currentSeq;
   const errors: ReplayResult['errors'] = [];
@@ -43,7 +41,8 @@ export async function replayFromLedger(opts: ReplayOptions): Promise<ReplayResul
     `[replay] Starting for consumer=${consumer_id} from_seq=${currentSeq} emit_to_bus=${emit_to_bus}`
   );
 
-  while (true) {
+  let hasMore = true;
+  while (hasMore) {
     const batch = await readEvents({
       fromSeq: currentSeq + 1,
       toSeq:   to_seq,
@@ -53,7 +52,6 @@ export async function replayFromLedger(opts: ReplayOptions): Promise<ReplayResul
     if (!batch.length) break;
 
     for (const event of batch) {
-      // Increment BEFORE try/catch — every event is attempted regardless of outcome.
       totalReplayed++;
       lastSeq = event.seq!;
 
@@ -80,7 +78,7 @@ export async function replayFromLedger(opts: ReplayOptions): Promise<ReplayResul
     currentSeq = lastSeq;
     await saveCursor({ consumer_id, last_seq: lastSeq, updated_at: new Date().toISOString() });
 
-    if (batch.length < batch_size) break;
+    if (batch.length < batch_size) hasMore = false;
   }
 
   const result: ReplayResult = {
