@@ -113,28 +113,17 @@ jobs:
       - name: Build Docker image
         run: docker build --target runner -t mcq-hedge-fund:ci .
 
-      - name: Write .env.ci
-        run: |
-          cat > .env.ci <<'EOF'
-POSTGRES_PASSWORD=ci_password_123
-KALSHI_BASE_URL=https://external-api.demo.kalshi.co
-KALSHI_WS_URL=wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2
-KALSHI_API_KEY_ID=ci-dummy
-KALSHI_PRIVATE_KEY_PEM=
-KALSHI_KEY_FILE=/dev/null
-EOF
-
-      - name: Start stack (Postgres + API)
-        run: docker compose --env-file .env.ci up -d
+      - name: Start stack via CI compose override
+        run: docker compose -f docker-compose.ci.yml up -d
 
       - name: Wait for API to become healthy
         run: |
-          echo "Waiting 10s for containers to initialise..."
-          sleep 10
+          echo "Waiting 15s for Postgres healthcheck + API boot..."
+          sleep 15
           for i in $(seq 1 24); do
             HTTP=$(curl -s -o /tmp/health.json -w "%{http_code}" http://localhost:3000/api/health || echo "000")
             if [ "$HTTP" = "200" ]; then
-              echo "API healthy after ${i} attempts (HTTP 200)"
+              echo "API healthy after ${i} attempts"
               cat /tmp/health.json
               exit 0
             fi
@@ -142,12 +131,12 @@ EOF
             sleep 5
           done
           echo "=== API never became healthy ==="
-          docker compose logs api
+          docker compose -f docker-compose.ci.yml logs
           exit 1
 
       - name: Tear down
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.ci.yml down -v
 
   # ──────────────────────────────────────────────────────────────────────────
   docker-push:

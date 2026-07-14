@@ -1,0 +1,41 @@
+# CI-only override — used exclusively by the docker job in ci.yml
+# Removes secrets mount, uses pre-built image, tightens healthcheck timing.
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mcq_fund
+      POSTGRES_USER: mcq_user
+      POSTGRES_PASSWORD: ci_password_123
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mcq_user -d mcq_fund']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: mcq-hedge-fund:ci
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://mcq_user:ci_password_123@postgres:5432/mcq_fund
+      KALSHI_BASE_URL: https://external-api.demo.kalshi.co
+      KALSHI_WS_URL: wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2
+      KALSHI_API_KEY_ID: ci-dummy
+      KALSHI_PRIVATE_KEY_PEM: ''
+      KALSHI_KEY_FILE: ''
+      H0: '0.01'
+      BETA_G: '1.5'
+      BETA_VELOCITY: '0.8'
+      BETA_VOLUME: '0.5'
+      BETA_SHADOW: '1.2'
+      FRACTIONAL_KELLY: '0.25'
+    ports:
+      - '3000:3000'
