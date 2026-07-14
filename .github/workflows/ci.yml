@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────────────
   test:
     name: Type-check, lint, test
     runs-on: ubuntu-latest
@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  # ──────────────────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────────────
   validate-replay:
     name: Seed ledger & validate replay engine
     runs-on: ubuntu-latest
@@ -102,7 +102,7 @@ jobs:
           ENFORCE_LOSS: '0.5'
           ACCOUNT_EQUITY: '1000000'
 
-  # ──────────────────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────────────
   docker:
     name: Docker build & health smoke test
     runs-on: ubuntu-latest
@@ -113,29 +113,35 @@ jobs:
       - name: Build Docker image
         run: docker build --target runner -t mcq-hedge-fund:ci .
 
-      - name: Start stack (Postgres + API)
+      - name: Write .env.ci
         run: |
-          cat > .env.ci << 'EOF'
-          POSTGRES_PASSWORD=ci_password_123
-          KALSHI_BASE_URL=https://external-api.demo.kalshi.co
-          KALSHI_WS_URL=wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2
-          KALSHI_API_KEY_ID=ci-dummy
-          KALSHI_PRIVATE_KEY_PEM=
-          KALSHI_KEY_FILE=/dev/null
-          EOF
-          docker compose --env-file .env.ci up -d --build
+          cat > .env.ci <<'EOF'
+POSTGRES_PASSWORD=ci_password_123
+KALSHI_BASE_URL=https://external-api.demo.kalshi.co
+KALSHI_WS_URL=wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2
+KALSHI_API_KEY_ID=ci-dummy
+KALSHI_PRIVATE_KEY_PEM=
+KALSHI_KEY_FILE=/dev/null
+EOF
+
+      - name: Start stack (Postgres + API)
+        run: docker compose --env-file .env.ci up -d
 
       - name: Wait for API to become healthy
         run: |
-          for i in $(seq 1 20); do
-            STATUS=$(curl -sf http://localhost:3000/api/health | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ok'))" 2>/dev/null || echo false)
-            if [ "$STATUS" = "True" ]; then
-              echo "API is healthy after ${i} attempts"
+          echo "Waiting 10s for containers to initialise..."
+          sleep 10
+          for i in $(seq 1 24); do
+            HTTP=$(curl -s -o /tmp/health.json -w "%{http_code}" http://localhost:3000/api/health || echo "000")
+            if [ "$HTTP" = "200" ]; then
+              echo "API healthy after ${i} attempts (HTTP 200)"
+              cat /tmp/health.json
               exit 0
             fi
-            echo "Attempt ${i}: not ready yet, waiting 5s..."
+            echo "Attempt ${i}: HTTP=${HTTP}, waiting 5s..."
             sleep 5
           done
+          echo "=== API never became healthy ==="
           docker compose logs api
           exit 1
 
@@ -143,7 +149,7 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # ──────────────────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────────────
   docker-push:
     name: Push to GitHub Container Registry
     runs-on: ubuntu-latest
