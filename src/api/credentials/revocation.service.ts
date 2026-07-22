@@ -2,18 +2,21 @@
  * MCQ Ventures — Key Revocation Service
  *
  * Orchestrates revocation from three sources:
- *   1. user       — customer-initiated via dashboard/API
- *   2. admin      — MCQ operator action
+ *   1. user           — customer-initiated via dashboard/API
+ *   2. admin          — MCQ operator action
  *   3. github-scanner — GitHub Secret Scanning Partner Program webhook
  *
- * Every revocation emits a KEY_REVOKED event to the event_ledger
- * (append-only audit trail) and triggers customer notification.
+ * Every revocation:
+ *   - Marks the key revoked in api_keys table
+ *   - Emits KEY_REVOKED event to event_ledger (append-only audit trail)
+ *   - Sends transactional email notification via AWS SES
  */
 
-import { createHash } from 'crypto';
-import { revokeApiKey } from '../../db/repositories/api-keys.repo';
+import { createHash, randomUUID } from 'crypto';
+import { revokeApiKey, getApiKeyByHash } from '../../db/repositories/api-keys.repo';
 import { query } from '../../db/client';
-import { randomUUID } from 'crypto';
+import { sendEmail } from '../notifications/email.service';
+import { buildKeyRevokedEmail } from '../notifications/templates/key-revoked';
 
 export type RevocationSource = 'user' | 'admin' | 'github-scanner';
 
@@ -23,10 +26,11 @@ export interface RevocationResult {
   customerId?: string;
   keyPrefix?: string;
   source: RevocationSource;
+  notificationCorrelationId?: string;
 }
 
 /**
- * Revoke by raw key (used when the raw string is available — e.g. github-scanner webhook).
+ * Revoke by raw key (used when raw string is available — e.g. github-scanner webhook).
  */
 export async function revokeByRawKey(
   rawKey: string,
@@ -48,11 +52,10 @@ export async function revokeByHash(
   const record = await revokeApiKey(keyHash, source, reason);
 
   if (!record) {
-    // Key not found or already revoked
     return { success: false, alreadyRevoked: true, source };
   }
 
-  // Emit KEY_REVOKED to event_ledger (non-blocking failure tolerated)
+  // ── 1. Emit KEY_REVOKED to event_ledger ───────────────────────────────────
   try {
     await query(
       `INSERT INTO event_ledger
@@ -73,8 +76,37 @@ export async function revokeByHash(
     console.error('[RevocationService] Ledger write failed:', err);
   }
 
-  // TODO: wire customer notification (email / Telegram)
-  // notifyCustomer(record.customer_id, record.key_prefix, source);
+  // ── 2. Fetch customer email ───────────────────────────────────────────────────
+  // customer_id is the Cognito sub or internal ID; email resolved from customers table.
+  // TODO: replace raw query with customers.repo when that module is built.
+  let customerEmail: string | null = null;
+  try {
+    const rows = await query<{ email: string }>(
+      'SELECT email FROM customers WHERE customer_id = $1 LIMIT 1',
+      [record.customer_id]
+    );
+    customerEmail = rows[0]?.email ?? null;
+  } catch {
+    // customers table not yet provisioned — skip notification, don't fail revocation
+    console.warn('[RevocationService] Could not resolve customer email — customers table may not exist yet');
+  }
+
+  // ── 3. Send revocation email via SES ─────────────────────────────────────────
+  let notificationCorrelationId: string | undefined;
+  if (customerEmail) {
+    const template = buildKeyRevokedEmail({
+      keyPrefix: record.key_prefix,
+      tier: record.tier,
+      source,
+      reason,
+    });
+    notificationCorrelationId = await sendEmail({
+      to: customerEmail,
+      subject: template.subject,
+      bodyText: template.bodyText,
+      bodyHtml: template.bodyHtml,
+    });
+  }
 
   return {
     success: true,
@@ -82,5 +114,6 @@ export async function revokeByHash(
     customerId: record.customer_id,
     keyPrefix: record.key_prefix,
     source,
+    notificationCorrelationId,
   };
 }
