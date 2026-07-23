@@ -7,20 +7,19 @@
 
 ## What This Is
 
-This repository is the core build for the **MCQ decision console** — a governance-first, AI-powered hedge fund agent that operates across five panels:
+MCQ is a **governance-first, AI-powered hedge fund decision console** that operates across five panels. Every component answers one of three questions in real time:
 
-| Panel | Primary Question | Key Objects |
-|---|---|---|
-| 1. Reverse DCF | What is the market assuming? | Implied growth, margin, IRR |
-| 2. Peer Comps | How does this name stack up? | Premium/discount vs peers |
-| 3. Portfolio & Risk | Can we survive this path? | Drawdown, exposures, limits |
-| 4. Backtests & Regime | Is behavior on-spec? | Sharpe, regime performance |
-| 5. Governance Queue | Are we inside our own rules? | Limits, alerts, approvals |
-
-The agent is not a reporting layer. Every widget answers one of three questions in real time:
 - **What is the market pricing in?**
 - **How does this compare to peers?**
 - **Is the strategy behaving as designed under current regime?**
+
+| Panel | Primary Question | Key Objects |
+|---|---|---|
+| 1. Reverse DCF | What is the market assuming? | Implied growth, margin, IRR; DDM / Gordon Growth valuation |
+| 2. Peer Comps | How does this name stack up? | Premium/discount vs peers; z-score & pct rank |
+| 3. Portfolio & Risk | Can we survive this path? | Drawdown, exposures, limits; income ladder |
+| 4. Backtests & Regime | Is behavior on-spec? | Sharpe, regime performance *(planned)* |
+| 5. Governance Queue | Are we inside our own rules? | Policy objects, alerts, audit log |
 
 ---
 
@@ -28,24 +27,26 @@ The agent is not a reporting layer. Every widget answers one of three questions 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     MCQ DECISION CONSOLE                       │
+│                     MCQ DECISION CONSOLE                        │
 ├──────────────────────────┬──────────────────────────────────────┤
 │  Panel 1: Reverse DCF    │  Panel 2: Peer Comps                 │
 │  - Implied revenue CAGR  │  - P/E, EV/EBITDA, EV/Revenue        │
 │  - Implied FCF margin    │  - Premium/discount bars             │
-│  - Implied IRR vs hurdle │  - Peer z-score & pct rank           │
-│  - Mispricing score      │  - Dynamic peer re-segmentation      │
+│  - DDM intrinsic value   │  - Peer z-score & pct rank           │
+│  - CAPM hurdle rate      │  - Dynamic peer re-segmentation      │
 ├──────────────────────────┴──────────────────────────────────────┤
 │  Panel 3: Portfolio Live State & Risk                           │
 │  - Equity curve · Drawdown · Factor exposures                  │
 │  - Sector/country heatmaps · VaR / Expected Shortfall          │
 │  - Governance-adjusted Kelly sizing · Risk budget tile         │
+│  - Dividend income ladder · Payment calendar · Gap detection   │
 ├──────────────────────────┬──────────────────────────────────────┤
 │  Panel 4: Backtests &    │  Panel 5: Governance Queue           │
-│  Regime Diagnostics      │  - Policy documents (versioned)      │
-│  - Sharpe/Sortino/DD     │  - Action queue (approve/reject)     │
-│  - Tracking error        │  - Decision log (audit trail)        │
+│  Regime Diagnostics      │  - Policy objects (versioned)        │
+│  *(planned — see         │  - Action queue (approve/reject)     │
+│   panel4-regime/README)* │  - Decision log (audit trail)        │
 │  - Regime classifier     │  - Risk limits (machine-readable)    │
+│  - Yield curve state     │  - Income sleeve policy params       │
 └──────────────────────────┴──────────────────────────────────────┘
 ```
 
@@ -53,14 +54,14 @@ The agent is not a reporting layer. Every widget answers one of three questions 
 
 ## Governance Math Engine
 
-MCQ treats governance as a **continuous-time hazard process**. The core math:
+MCQ treats governance as a **continuous-time hazard process**. The core math is implemented in `src/governance/` and fully documented in `docs/governance/hazard-kelly-model.md`.
 
 ### Hazard Function
 ```
 h(t | G, X) = h₀(t) · exp(βG·(1-G) + βᵀX)
 ```
 - `G` = normalized governance score (0–1)
-- `X` = covariate vector (Velocity, Volume, Shadow + other signals)
+- `X` = covariate vector: Velocity, Volume, Shadow + extensible additional signals
 - `h₀(t)` = baseline hazard
 
 ### Survival & Enforcement Probability
@@ -82,14 +83,35 @@ f_Kelly_gov = W_eff - (1-W_eff)/R → governance-aware Kelly fraction
 RiskPerTrade = Equity · f_fraction · f_Kelly_gov
 ```
 
+See `docs/governance/hazard-kelly-model.md` for full derivation and parameter reference.
+
 ---
 
-## Reference Repos
+## Strategy Modules
 
-This project draws architectural patterns from:
+MCQ implements multiple strategy overlays documented in `docs/strategy/`:
 
-- **[tinyhumansai/openhuman](https://github.com/tinyhumansai/openhuman)** — Agent orchestration platform (Rust + TypeScript, pnpm monorepo). Used for agent loop design, multi-LLM routing, and AGENTS.md spec pattern.
-- **[vincentkoc/tokenjuice](https://github.com/vincentkoc/tokenjuice)** — Token management and optimization (TypeScript). Used for LLM token budgeting inside the agent's research and analysis loops.
+| Strategy | Doc | Status |
+|---|---|---|
+| Long/Short Equity | `hedge-fund-strategy-playbook.md` | Documented |
+| Event-Driven | `hedge-fund-strategy-playbook.md` | Documented |
+| Global Macro | `hedge-fund-strategy-playbook.md` | Documented |
+| Dividend Income Sleeve | `dividend-income-sleeve.md` | Implemented |
+| Managed Futures / CTA | `hedge-fund-strategy-playbook.md` | Documented |
+| Market Neutral | `hedge-fund-strategy-playbook.md` | Documented |
+
+---
+
+## Academic Spine
+
+MCQ's architecture is grounded in standard quantitative finance pedagogy. Key frameworks:
+
+- **Asset Pricing & Derivatives** — No-arbitrage, CAPM/APT, DDM, derivatives pricing. See `docs/foundations/asset-pricing-and-markets.md`.
+- **Portfolio Construction & Risk** — Mean-variance optimization, factor models, drawdown governance, performance attribution. See `docs/risk/portfolio-construction-and-risk-control.md`.
+- **Hedge Fund Strategy Taxonomy** — Long/short equity, event-driven, global macro, market neutral, managed futures, convertible arbitrage, multi-strategy. See `docs/strategy/hedge-fund-strategy-playbook.md`.
+- **CAPM Reference Inputs (Jul 2026):** R_f = 4.65% (U.S. 10-Year), R_m = 10.00%, MRP = 5.35%.
+
+For full bibliography see `docs/references/bibliography.md`.
 
 ---
 
@@ -97,26 +119,48 @@ This project draws architectural patterns from:
 
 ```
 mcq-hedge-fund/
-├── AGENTS.md                  # Agent behavior spec (what the AI can/cannot do)
+├── AGENTS.md                      # Agent behavior spec
+├── SYSTEM_STATUS.md               # Live build status per component
 ├── docs/
-│   ├── schema/                # Full entity + field schemas per panel
-│   ├── governance/            # Hazard model, Kelly math, policy framework
-│   ├── architecture/          # System design, event pipeline, data flow
-│   └── investor/              # Investor one-pager and positioning docs
+│   ├── foundations/               # Asset pricing, derivatives, market theory
+│   │   └── asset-pricing-and-markets.md
+│   ├── governance/                # Hazard model, Kelly math, policy framework
+│   │   └── hazard-kelly-model.md
+│   ├── risk/                      # Portfolio construction & risk control
+│   │   └── portfolio-construction-and-risk-control.md
+│   ├── strategy/                  # Strategy playbooks (per sleeve)
+│   │   ├── hedge-fund-strategy-playbook.md
+│   │   └── dividend-income-sleeve.md
+│   ├── schema/                    # Entity + field schemas per panel
+│   ├── architecture/              # System design, event pipeline, data flow
+│   ├── references/                # Bibliography and academic citations
+│   └── investor/                  # Investor one-pager and positioning docs
 ├── src/
-│   ├── agent/                 # Core agent loop and orchestration
-│   ├── panels/                # Panel-specific data logic
-│   │   ├── panel1-dcf/        # Reverse DCF engine
-│   │   ├── panel2-comps/      # Peer benchmarking
-│   │   ├── panel3-risk/       # Portfolio risk & Kelly sizing
-│   │   ├── panel4-backtest/   # Backtesting & regime detection
-│   │   └── panel5-governance/ # Policy, action queue, audit log
-│   ├── governance/            # Hazard scoring, survival functions, Kelly
-│   ├── data/                  # Feeds, adapters, normalizers
-│   └── api/                   # REST/webhook endpoints
-├── scripts/                   # Setup, seed data, utilities
-├── tests/                     # Unit + integration tests
-└── .env.example               # Environment variable template
+│   ├── governance/                # Hazard scoring, survival, Kelly, EV, alerts
+│   │   ├── hazard.ts
+│   │   ├── kelly.ts
+│   │   ├── expected-value.ts
+│   │   ├── alerts.ts
+│   │   ├── scorer.ts
+│   │   ├── types.ts
+│   │   └── __tests__/
+│   ├── panels/
+│   │   ├── panel1-dcf/            # Reverse DCF + DDM/CAPM dividend screen
+│   │   ├── panel2-comps/          # Peer benchmarking
+│   │   ├── panel3-risk/           # Portfolio risk, Kelly sizing, income ladder
+│   │   ├── panel4-regime/         # Regime & backtests (PLANNED — see README)
+│   │   └── panel5-governance/     # Policy, action queue, audit log
+│   ├── integrations/              # Market data adapters (dividend calendar, brokers)
+│   ├── api/                       # REST/webhook endpoints
+│   ├── data/                      # Feeds, adapters, normalizers
+│   ├── db/                        # Schema, migrations
+│   ├── events/                    # Event pipeline
+│   ├── projections/               # Forward projection models
+│   ├── state/                     # State management
+│   └── scripts/                   # Utilities and seed data
+├── infrastructure/                # IaC, Docker, CI config
+├── scripts/                       # Setup and utilities
+└── .env.example                   # Environment variable template
 ```
 
 ---
@@ -136,28 +180,34 @@ MCQ is designed to sit as the **governance control plane** above machine commerc
 
 ## Stack
 
-- **Runtime:** Node.js / TypeScript (primary), Python (governance math)
-- **Agent Layer:** Inspired by openhuman agent orchestration patterns
-- **Token Management:** tokenjuice for LLM token budgeting
-- **Data:** Google Sheets (MVP) → Postgres / BigQuery (production)
+- **Runtime:** Node.js / TypeScript
+- **Test Runner:** Vitest
+- **Data APIs:** Polygon.io (default), IEX Cloud (fallback)
 - **Auth / Roles:** Role-based access (PM, Risk, Analyst, Ops, ReadOnly)
-- **Infra:** Google Cloud / DigitalOcean · Docker · GitHub Actions
+- **Infra:** Docker · GitHub Actions · Vercel (UI layer)
+- **DB:** PostgreSQL (production) · DynamoDB (AWS Lambda path)
 
 ---
 
-## Status
+## Build Status
 
-🚧 **Active build — Phase 1**
+See `SYSTEM_STATUS.md` for full component-level status.
 
-- [x] Architecture designed
-- [x] Full schema defined (5 panels + event pipeline)
-- [x] Governance math engine specified
-- [ ] Panel 1: Reverse DCF engine
-- [ ] Panel 2: Peer comps grid
-- [ ] Panel 3: Portfolio risk console
-- [ ] Panel 4: Backtesting + regime classifier
-- [ ] Panel 5: Governance queue + action approvals
-- [ ] Agent Pay / Mastercard integration layer
+**Governance Engine** — ✅ Implemented (`src/governance/`)
+**Dividend Income Sleeve** — ✅ Implemented (`src/integrations/`, `src/panels/panel1-dcf/`, `src/panels/panel3-risk/`)
+**Panel 1 DCF** — 🔧 In progress
+**Panel 2 Comps** — 🔧 In progress
+**Panel 3 Risk** — 🔧 In progress
+**Panel 4 Regime** — 📋 Planned (see `src/panels/panel4-regime/README.md`)
+**Panel 5 Governance Queue** — 🔧 In progress
+**Agent Pay Integration** — 📋 Planned
+
+---
+
+## Reference Repos
+
+- **[tinyhumansai/openhuman](https://github.com/tinyhumansai/openhuman)** — Agent orchestration platform. Used for agent loop design and AGENTS.md spec pattern.
+- **[vincentkoc/tokenjuice](https://github.com/vincentkoc/tokenjuice)** — Token management. Used for LLM token budgeting inside agent research loops.
 
 ---
 
