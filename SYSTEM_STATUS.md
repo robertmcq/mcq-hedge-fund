@@ -36,9 +36,7 @@ This file is the authoritative record of build status for every MCQ component. U
 | Strategy | Doc | Code | Test | Status |
 |---|---|---|---|---|
 | Hedge Fund Strategy Playbook | `docs/strategy/hedge-fund-strategy-playbook.md` | N/A | N/A | ✅ Documented |
-| Dividend Income Sleeve | `docs/strategy/dividend-income-sleeve.md` | `src/integrations/dividend-calendar.ts`, `src/panels/panel1-dcf/dividend-screen.ts`, `src/panels/panel3-risk/income-ladder.ts` | `dividend-calendar.test.ts`, `income-ladder.test.ts` | ✅ Implemented |
-
-**Note:** `fetchDividendData()` and `buildScreenedUniverse()` in `dividend-calendar.ts` make live `fetch()` calls and require integration-level mocking (vi.mock / MSW). That pass is deferred and tracked below under Open Integration Test Gaps.
+| Dividend Income Sleeve | `docs/strategy/dividend-income-sleeve.md` | `src/integrations/dividend-calendar.ts`, `src/panels/panel1-dcf/dividend-screen.ts`, `src/panels/panel3-risk/income-ladder.ts` | `dividend-calendar.test.ts`, `dividend-calendar.fetch.test.ts`, `dividend-screen.test.ts`, `income-ladder.test.ts` | ✅ Implemented |
 
 ---
 
@@ -46,7 +44,7 @@ This file is the authoritative record of build status for every MCQ component. U
 
 | Panel | Directory | Status | Notes |
 |---|---|---|---|
-| Panel 1: Reverse DCF | `src/panels/panel1-dcf/` | 🔧 In Progress | `dividend-screen.ts` (DDM/CAPM) implemented; core reverse DCF engine pending |
+| Panel 1: Reverse DCF | `src/panels/panel1-dcf/` | 🔧 In Progress | `dividend-screen.ts` fully test-covered (PR #10); core reverse DCF engine pending |
 | Panel 2: Peer Comps | `src/panels/panel2-comps/` | 🔧 In Progress | |
 | Panel 3: Portfolio & Risk | `src/panels/panel3-risk/` | 🔧 In Progress | `income-ladder.ts` implemented and test-covered; core risk console pending |
 | Panel 4: Regime & Backtests | `src/panels/panel4-regime/` | 📋 Planned | See `src/panels/panel4-regime/README.md` for full scope and dependency map |
@@ -59,7 +57,7 @@ This file is the authoritative record of build status for every MCQ component. U
 | Integration | File | Status | Test | Notes |
 |---|---|---|---|---|
 | Dividend Calendar — screen logic | `dividend-calendar.ts` | ✅ Implemented | `dividend-calendar.test.ts` (10 unit tests) | `screenDividendRecord()` fully covered |
-| Dividend Calendar — fetch layer | `dividend-calendar.ts` | ⚠️ Needs Tests | Pending | `fetchDividendData()` and `buildScreenedUniverse()` require fetch-mock / MSW integration tests |
+| Dividend Calendar — fetch layer | `dividend-calendar.ts` | ✅ Implemented | `dividend-calendar.fetch.test.ts` (12 tests) | `fetchDividendData()` and `buildScreenedUniverse()` covered via `vi.stubGlobal('fetch', vi.fn())` |
 | Broker — GatesFX | Planned | 📋 Planned | N/A | FSCA FSP 46087 verified; offshore entity (St. Lucia IBC). Personal discretionary allocation only — not for LP capital. Integration deferred until repo is private. |
 | Broker — IBKR | Planned | 📋 Planned | N/A | Tier-1 regulated (FINRA/SIPC, FCA). Preferred counterparty for fund capital. |
 
@@ -96,28 +94,26 @@ This file is the authoritative record of build status for every MCQ component. U
 
 ## Open Integration Test Gaps
 
-The following require fetch-mocking infrastructure (Vitest `vi.mock` or MSW) before they can be unit-tested in isolation. These are **should-have** before first production LP capital deployment:
+**None.** All previously identified gaps are now closed as of PR #10.
 
-1. `src/integrations/dividend-calendar.ts` — `fetchDividendData()`: mock Polygon.io and IEX Cloud responses; test provider selection, normalisation, null return on 4xx, and provider fallback logic.
-2. `src/integrations/dividend-calendar.ts` — `buildScreenedUniverse()`: mock underlying `fetchDividendData()`; test passing vs. failing split, null-record handling.
-3. `src/panels/panel1-dcf/dividend-screen.ts` — `computeDividendValuation()`: unit tests for CAPM + DDM outputs; MODEL_INVALID case (r ≤ g); env-var threshold override.
+The fetch-mock approach (`vi.stubGlobal('fetch', vi.fn())`) is available via Node 24's built-in `fetch` and Vitest globals. No MSW installation was required.
 
 ---
 
-## Closed Test Coverage Gaps (as of July 2026)
+## Closed Test Coverage Gaps
 
-The following were previously flagged as ⚠️ Needs Tests and are now ✅ Implemented:
+| Module | Tests Added | Test File | PR |
+|---|---|---|---|
+| `src/governance/kelly.ts` | 5 | `kelly.test.ts` | #8 |
+| `src/governance/expected-value.ts` | 4 | `expected-value.test.ts` | #8 |
+| `src/governance/alerts.ts` | 5 | `alerts.test.ts` | #8 |
+| `src/governance/scorer.ts` (regression) | 1 | `scorer.runtime-guard.test.ts` | #8 |
+| `src/integrations/dividend-calendar.ts` (screen) | 10 | `dividend-calendar.test.ts` | #8 |
+| `src/panels/panel3-risk/income-ladder.ts` | 12 | `income-ladder.test.ts` | #8 |
+| `src/integrations/dividend-calendar.ts` (fetch) | 12 | `dividend-calendar.fetch.test.ts` | #10 |
+| `src/panels/panel1-dcf/dividend-screen.ts` | 21 | `dividend-screen.test.ts` | #10 |
 
-| Module | Tests Added | PR |
-|---|---|---|
-| `src/governance/kelly.ts` | `kelly.test.ts` (5 tests) | #8 |
-| `src/governance/expected-value.ts` | `expected-value.test.ts` (4 tests) | #8 |
-| `src/governance/alerts.ts` | `alerts.test.ts` (5 tests) | #8 |
-| `src/governance/__tests__/scorer.ts` | `scorer.runtime-guard.test.ts` (1 regression) | #8 |
-| `src/integrations/dividend-calendar.ts` | `dividend-calendar.test.ts` (10 tests) | #8 |
-| `src/panels/panel3-risk/income-ladder.ts` | `income-ladder.test.ts` (12 tests) | #8 |
-
-**Total test count (governance + income sleeve unit tests): 37**
+**Total unit + integration tests: 70**
 
 ---
 
