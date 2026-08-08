@@ -2,8 +2,10 @@ name: Market Context Pipeline
 
 on:
   schedule:
-    - cron: '0 14 * * 1-5'       # 9:00 AM ET daily open — full FRED + EDGAR + AV run
-    - cron: '30 14-21 * * 1-5'   # Every 30 min during market hours
+    - cron: '0 9 * * 1-5'
+      timezone: 'America/New_York'
+    - cron: '30 9-16 * * 1-5'
+      timezone: 'America/New_York'
   workflow_dispatch:              # Manual trigger for testing
 
 jobs:
