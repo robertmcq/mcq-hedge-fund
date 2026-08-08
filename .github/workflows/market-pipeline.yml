@@ -1,12 +1,10 @@
 name: Market Context Pipeline
 
 on:
-  # Cron paused until install + secrets + S3 path are green.
-  # Restore after successful workflow_dispatch:
-  #   schedule:
-  #     - cron: '0 14 * * 1-5'       # 9:00 AM ET daily open
-  #     - cron: '30 14-21 * * 1-5'   # Every 30 min during market hours
-  workflow_dispatch:
+  schedule:
+    - cron: '0 14 * * 1-5'       # 9:00 AM ET daily open — full FRED + EDGAR + AV run
+    - cron: '30 14-21 * * 1-5'   # Every 30 min during market hours
+  workflow_dispatch:              # Manual trigger for testing
 
 jobs:
   run-pipeline:
@@ -18,15 +16,13 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: 'npm'
 
-      # Stub package-lock.json breaks npm ci (see Docker fix 677d5e4).
-      # Use npm install until a real lockfile is committed.
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build TypeScript
         run: npm run build
