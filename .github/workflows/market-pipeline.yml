@@ -6,7 +6,7 @@ on:
       timezone: 'America/New_York'
     - cron: '30 9-16 * * 1-5'
       timezone: 'America/New_York'
-  workflow_dispatch:              # Manual trigger for testing
+  workflow_dispatch:
 
 jobs:
   run-pipeline:
