@@ -83,10 +83,16 @@
         "Code": {
           "ZipFile": "exports.handler = async (event) => ({ statusCode: 200, body: JSON.stringify({ ok: true, event }) });"
         },
-        "Tags": {
-          "Project": "mcq-hedge-fund",
-          "Environment": {"Ref": "Environment"}
-        }
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "mcq-hedge-fund"
+          },
+          {
+            "Key": "Environment",
+            "Value": {"Ref": "Environment"}
+          }
+        ]
       }
     },
     "DailyOpenRule": {
