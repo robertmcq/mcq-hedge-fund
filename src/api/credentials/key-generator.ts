@@ -43,7 +43,7 @@ function toBase62(n: bigint): string {
 
 function entropyBase62(byteLength: number): string {
   const bytes = randomBytes(byteLength);
-  let n = BigInt('0x' + bytes.toString('hex'));
+  const n = BigInt('0x' + bytes.toString('hex'));
   return toBase62(n);
 }
 

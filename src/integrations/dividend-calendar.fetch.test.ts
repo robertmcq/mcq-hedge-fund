@@ -11,7 +11,7 @@
  *  - buildScreenedUniverse(): passing/failing split, null-record handling
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchDividendData,
   buildScreenedUniverse,
@@ -68,7 +68,7 @@ const iexResponse = [
 // ─── fetchDividendData ───────────────────────────────────────────────────────
 
 describe('fetchDividendData', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); });
 
   it('throws when api_key is empty', async () => {
     await expect(
@@ -194,7 +194,7 @@ describe('buildScreenedUniverse', () => {
     growth_streak_min_years: 5,
   };
 
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); });
 
   it('places passing records in passing[] and failing screens in failing[]', async () => {
     // KO passes all screens; LOW_YIELD will fail yield_floor
