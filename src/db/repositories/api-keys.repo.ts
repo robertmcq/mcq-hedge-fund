@@ -5,7 +5,7 @@
  * Only key_hash (SHA-256 of raw key) is stored or queried.
  */
 
-import { query, withClient } from '../client';
+import { query } from '../client';
 
 export interface ApiKeyRecord {
   key_hash: string;
