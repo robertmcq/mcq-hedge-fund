@@ -13,7 +13,7 @@
  */
 
 import { createHash, randomUUID } from 'crypto';
-import { revokeApiKey, getApiKeyByHash } from '../../db/repositories/api-keys.repo';
+import { revokeApiKey } from '../../db/repositories/api-keys.repo';
 import { query } from '../../db/client';
 import { sendEmail } from '../notifications/email.service';
 import { buildKeyRevokedEmail } from '../notifications/templates/key-revoked';
@@ -55,7 +55,7 @@ export async function revokeByHash(
     return { success: false, alreadyRevoked: true, source };
   }
 
-  // ── 1. Emit KEY_REVOKED to event_ledger ───────────────────────────────────
+  // ── 1. Emit KEY_REVOKED to event_ledger ───────────────────────────────────────────
   try {
     await query(
       `INSERT INTO event_ledger
@@ -76,7 +76,7 @@ export async function revokeByHash(
     console.error('[RevocationService] Ledger write failed:', err);
   }
 
-  // ── 2. Fetch customer email ───────────────────────────────────────────────────
+  // ── 2. Fetch customer email ───────────────────────────────────────────────────────
   // customer_id is the Cognito sub or internal ID; email resolved from customers table.
   // TODO: replace raw query with customers.repo when that module is built.
   let customerEmail: string | null = null;
@@ -91,7 +91,7 @@ export async function revokeByHash(
     console.warn('[RevocationService] Could not resolve customer email — customers table may not exist yet');
   }
 
-  // ── 3. Send revocation email via SES ─────────────────────────────────────────
+  // ── 3. Send revocation email via SES ─────────────────────────────────────────────────
   let notificationCorrelationId: string | undefined;
   if (customerEmail) {
     const template = buildKeyRevokedEmail({

@@ -11,7 +11,7 @@
  *  - buildScreenedUniverse(): passing/failing split, null-record handling
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchDividendData,
   buildScreenedUniverse,
