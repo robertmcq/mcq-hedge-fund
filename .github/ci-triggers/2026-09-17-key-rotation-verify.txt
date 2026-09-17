@@ -1,0 +1,4 @@
+Trigger marker for AWS credential rotation verification.
+Rotated key deployed: 2026-09-17 16:07 EDT.
+Purpose: fire on-push/on-PR workflows (deploy-infrastructure.yml, market-pipeline.yml, ci.yml) to confirm new AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY authenticate successfully before old key AKIAYB6WIHDZHJYCSV4N is deactivated.
+Safe to delete after verification.
